@@ -85,6 +85,7 @@ public:
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
 
+	
 	virtual void writeToElement(ElementTuple& element, FGraph& graph);
 	void readFromElement( ElementTuple& element, FGraph& graph);
 

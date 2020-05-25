@@ -2,46 +2,33 @@
 
 #pragma once
 
-#include "ElementActor.h"
-
-
 #include "CoreMinimal.h"
 #include "Simulation/FlexElements.h"
-#include "Components/ActorComponent.h"
+#include "ElementActor.h"
+#include "ShipEditorSimulation/Graph.h"
+#include "GameFramework/Actor.h"
 #include "MoleculeCreator.generated.h"
 
-
-UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
-class LIFEBRUSH_API UMoleculeCreator : public UActorComponent
+UCLASS(BlueprintType)
+class LIFEBRUSH_API AMoleculeCreator : public AActor
 {
 	GENERATED_BODY()
-
-public:	
 	
+public:	
 
-	//UPROPERTY(EditAnywhere)
-		//bool spawnMol;
-
-	UPROPERTY(EditAnywhere)
-		UStaticMesh* mesh;
-
-	bool isParticle = true;
-
-	void SpawnEActor();
-	void SetGraphObjects(AElementActor*);
-
-	UMoleculeCreator();
+	
+	void attachNodes();
+	// Sets default values for this actor's properties
+	AMoleculeCreator();
 
 protected:
-	// Called when the game starts
+	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	
 
 public:	
 	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void Tick(float DeltaTime) override;
 
-		
+	
 	
 };

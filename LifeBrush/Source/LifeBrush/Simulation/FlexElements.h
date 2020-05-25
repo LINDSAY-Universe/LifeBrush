@@ -339,6 +339,21 @@ protected:
 	float _g;	// g = a_max * r_min^2 / m_h. However, we just assume m_h is 1. We just want to approximate a_max at a certain distance.
 };
 
+UCLASS()
+class LIFEBRUSH_API URandomWalkSimulation : public UObjectSimulation
+{
+	GENERATED_BODY()
+protected:
+	virtual void attach() override;
+
+public:
+	virtual void tick(float deltaT) override;
+
+	std::shared_ptr<tcodsMeshInterface> meshInterface;
+
+	FTransform toWorld;
+};
+
 
 USTRUCT( BlueprintType )
 struct LIFEBRUSH_API FSpinnerGraphObject : public FGraphObject
@@ -432,21 +447,6 @@ public:
 	FSurfaceIndex surfaceIndex;
 };
 
-UCLASS()
-class LIFEBRUSH_API URandomWalkSimulation : public UObjectSimulation
-{
-	GENERATED_BODY()
-protected:
-	virtual void attach();
-
-public:
-	virtual void tick( float deltaT ) override;
-
-	std::shared_ptr<tcodsMeshInterface> meshInterface;
-
-	FTransform toWorld;
-};
-
 
 
 UCLASS()
@@ -467,30 +467,88 @@ public:
 };
 
 
+//Simulation showing transcription and translation of DNA
+UCLASS()
+class LIFEBRUSH_API UCentralDogmaSimulation : public UObjectSimulation, public IFlexGraphSimulation
+{
+	GENERATED_BODY()
 
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
+	float DNAInteractionRadius = 5.0f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
+	TArray<FTimStructBox> rnaTemplate;
+		
+protected:
+	virtual void attach() override;
 
+public:
+	virtual void tick(float deltaT) override;
+	virtual void tick_paused(float deltaT) override;
 
+	virtual void flexTick(
+		float deltaT,
+		NvFlexVector<int>& neighbourIndices,
+		NvFlexVector<int>& neighbourCounts,
+		NvFlexVector<int>& apiToInternal,
+		NvFlexVector<int>& internalToAPI,
+		int maxParticles
+	)override;
 
+protected:
+	FGraphNode& _spawnRNA(FVector position, FQuat orientation, float scale);
 
+	
 
+};
 
+UCLASS(BlueprintType)
+class LIFEBRUSH_API UEvent_GTFbindDNA : public USEGraphEvent
+{
+	GENERATED_BODY()
 
+public:
+	virtual ~UEvent_GTFbindDNA(){}
+};
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
 
+	public:
 
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma Sim")
+		float dnaInteractionRadius;
 
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma Sim")
+		float bindingRadius;
 
+		bool isGTFBound = false;
 
+		
+};
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+};
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_TranscriptFactors_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
 
+		bool isDNABound = false;
+};
 
-
-
-
-
-
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_Polymerase_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+};
 
 
 

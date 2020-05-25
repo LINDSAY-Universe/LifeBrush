@@ -1942,6 +1942,7 @@ void UATPSynthaseSimulation::flexTick(
 
 	const int stride = maxParticles;
 
+
 	// If we have hydrogen below us, spin and teleport it across the membrane
 	// If we are spinning and have ADP above us, destroy it and produce ADP
 
@@ -1967,6 +1968,7 @@ void UATPSynthaseSimulation::flexTick(
 
 		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
 		int neighborCount = neighbourCounts[nodeIndex_flexInternal];
+
 
 		// use hydrogen to spin
 		if(synthase.timerH < 0.0f)
@@ -2758,4 +2760,175 @@ void UStaticPositionSimulation::_tickStatic(float deltaT)
 			}
 		}
 	}
+
+
 }
+
+void UCentralDogmaSimulation::attach() {
+
+}
+
+void UCentralDogmaSimulation::tick(float deltaT) {
+
+}
+
+void UCentralDogmaSimulation::tick_paused(float deltaT) {
+
+}
+
+void UCentralDogmaSimulation::flexTick(float deltaT,
+	NvFlexVector<int>& neighbourIndices,
+	NvFlexVector<int>& neighbourCounts,
+	NvFlexVector<int>& apiToInternal,
+	NvFlexVector<int>& internalToAPI,
+	int maxParticles)
+{
+	/*
+	auto& DNAObjects = graph->componentStorage<FCentralDog_DNA_GraphObject>();
+	auto& RNAObjects = graph->componentStorage<FCentralDog_RNA_GraphObject>();
+	auto& GTFs = graph->componentStorage<FCentralDog_TranscriptFactors_GraphObject>();
+	auto& polymerases = graph->componentStorage<FCentralDog_Polymerase_GraphObject>();
+
+	auto& hydrogens = graph->componentStorage<FHydrogenGraphObject>();
+	auto& particles = graph->componentStorage<FFlexParticleObject>();
+
+
+	const int stride = maxParticles;
+
+	graph->beginTransaction();
+
+
+	UTimelineSimulation* timeline = simulationManager->simulation<UTimelineSimulation>();
+
+	for (FCentralDog_DNA_GraphObject& dna : DNAObjects)
+	{
+
+
+		if (!dna.isValid())continue;
+
+		auto nodeIndex = dna.nodeIndex;
+
+
+		FGraphNode& dnaNode = graph->node(nodeIndex);
+
+		if (!dnaNode.hasComponent<FFlexParticleObject>())
+			continue;
+
+		const float interactionRadiusSqrd = dna.dnaInteractionRadius * dna.dnaInteractionRadius;
+		const float bindingRadiusSqrd = dna.bindingRadius * dna.bindingRadius;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+		UE_LOG(LogTemp, Warning, TEXT("DNA Node Index %d  NeighbourCount: %d"), nodeIndex,neighbourCount);
+
+		float nearestSqrdDistance = std::numeric_limits<float>::max();
+		FGraphNodeHandle nearestGTF;
+
+		for (int i = 0; i < neighbourCount; ++i)
+		{
+			//search neighbours for closest GTF
+			int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+			FGraphNode& GTFnode = graph->node(neighbourIndex);
+
+			if (GTFs.componentPtrForNode(GTFnode.handle())== nullptr) continue;
+
+			FVector direction = dnaNode.position - GTFnode.position;
+
+			float distSqrd = direction.SizeSquared();
+
+			if (distSqrd > interactionRadiusSqrd)
+				continue;
+
+			if (distSqrd < nearestSqrdDistance)
+			{
+				nearestSqrdDistance = distSqrd;
+				nearestGTF = FGraphNodeHandle(GTFnode);
+			}
+			
+			break;
+		}
+
+		//First we check if the GTF is within the interaction radius. If it is then we will move
+		//the GTF closer to the DNA strand. 
+		//Then we see if the GTF is within binding proximity.
+
+		if (nearestGTF)
+		{
+
+			UE_LOG(LogTemp, Warning, TEXT("Nearest GTF Found: %d"), nearestGTF.index);
+			FGraphNode& GTFnode = nearestGTF(graph);
+
+
+			if (!GTFnode.hasComponent<FVelocityGraphObject>())
+				GTFnode.addComponent<FVelocityGraphObject>(*graph);
+
+			FVector directToDNA = dnaNode.position - GTFnode.position;
+			
+			//start moving the GTF closer to the DNA
+			FVelocityGraphObject& gtfVel = GTFnode.component<FVelocityGraphObject>(*graph);
+			gtfVel.linearVelocity = directToDNA;
+			
+			float distSqrd = directToDNA.SizeSquared();
+
+			if (distSqrd > bindingRadiusSqrd)
+				continue;
+
+			//if GTF is close enough to bind DNA, initiate binding and create an RNA node
+			if (distSqrd < bindingRadiusSqrd)
+			{
+
+				
+
+				UEvent_GTFbindDNA& GTFBindDNAEvent = timeline->recordEvent<UEvent_GTFbindDNA>(dnaNode.position);
+				GTFBindDNAEvent.triggeringAgent = FGraphNodeHandle(GTFnode);
+				GTFBindDNAEvent.otherAgents.Add(FGraphNodeHandle(dnaNode));
+			}
+
+
+		}
+
+
+
+
+
+
+	}
+
+
+	graph->endTransaction();
+	*/
+}
+
+
+FGraphNode& UCentralDogmaSimulation::_spawnRNA(FVector position, FQuat orientation, float scale)
+{
+	
+	
+	FGraphNode& node = graph->node(graph->addNode(position, orientation, scale));
+	/*
+	//spawn components
+	for (FTimStructBox& box : rnaTemplate)
+	{
+
+		if (!box.IsValid())
+			continue;
+
+		//create graph object in simulation
+		ComponentType type = FGraphObject::componentType(box.scriptStruct);
+
+		FGraphObject* object = node.addComponent(*graph, type);
+
+		//copy memory from element
+		box.scriptStruct->CopyScriptStruct(object, box.structMemory);
+
+		object->nodeIndex = node.id;
+
+	}
+	*/
+	return node;
+	
+}
+
+
+
