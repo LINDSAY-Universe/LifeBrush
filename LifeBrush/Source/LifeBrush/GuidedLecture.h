@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "ElementActor.h"
 #include "GuidedLecture.generated.h"
 
 USTRUCT(BlueprintType)
@@ -13,12 +14,12 @@ struct LIFEBRUSH_API FLectureSlide
 
 public:
 
-	UPROPERTY(EditAnywhere,BlueprintReadWrite, meta = (MultiLine = true))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MultiLine = true))
 	FText textBody;
-	
-	FTexture image;
 
-	
+	//The palette that will be available to user on a given slide
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		TArray<AElementActor*> slidePalette;
 	
 
 };

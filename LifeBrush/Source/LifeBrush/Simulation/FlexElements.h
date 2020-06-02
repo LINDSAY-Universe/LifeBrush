@@ -466,6 +466,64 @@ public:
 	FTransform toWorld;
 };
 
+//////////////////////////CENTRAL DOGMA SIMULATION//////////////////////////////////////
+
+
+UCLASS(BlueprintType)
+class LIFEBRUSH_API UEvent_spawnRNA : public USEGraphEvent
+{
+	GENERATED_BODY()
+
+public:
+	virtual ~UEvent_spawnRNA() {}
+};
+
+
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
+	bool isGTFBound = false;
+	bool isPolBound = false;
+
+	//stores the initial randWalk parameters so we can restore them later
+	float defaultRandWalk_MaxOffset;
+	float defaultRandWalk_BaseVel;
+
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+
+		
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_TranscriptFactors_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
+	bool isDNABound = false;
+
+	//reference to the DNA object the GTF is bound to
+	int32 boundDNAnodeIndex;
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_Polymerase_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+	bool isDNABound = false;
+
+};
+
 
 //Simulation showing transcription and translation of DNA
 UCLASS()
@@ -474,8 +532,7 @@ class LIFEBRUSH_API UCentralDogmaSimulation : public UObjectSimulation, public I
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
-	float DNAInteractionRadius = 5.0f;
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
 	TArray<FTimStructBox> rnaTemplate;
@@ -497,61 +554,20 @@ public:
 	)override;
 
 protected:
+
+
+
 	FGraphNode& _spawnRNA(FVector position, FQuat orientation, float scale);
 
+	void bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf);
+	void bindPolToDNA(FCentralDog_TranscriptFactors_GraphObject& gtf, FCentralDog_Polymerase_GraphObject& rnaPol);
 	
 
 };
 
-UCLASS(BlueprintType)
-class LIFEBRUSH_API UEvent_GTFbindDNA : public USEGraphEvent
-{
-	GENERATED_BODY()
-
-public:
-	virtual ~UEvent_GTFbindDNA(){}
-};
-
-USTRUCT(BlueprintType)
-struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
-{
-	GENERATED_BODY()
-
-	public:
-
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma Sim")
-		float dnaInteractionRadius;
-
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma Sim")
-		float bindingRadius;
-
-		bool isGTFBound = false;
-
-		
-};
-
-USTRUCT(BlueprintType)
-struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
-{
-	GENERATED_BODY()
-};
-
-USTRUCT(BlueprintType)
-struct LIFEBRUSH_API FCentralDog_TranscriptFactors_GraphObject : public FGraphObject
-{
-	GENERATED_BODY()
-
-		bool isDNABound = false;
-};
-
-USTRUCT(BlueprintType)
-struct LIFEBRUSH_API FCentralDog_Polymerase_GraphObject : public FGraphObject
-{
-	GENERATED_BODY()
-};
 
 
-
+///////////////////////////////////////////////////////////////////////////////////////////
 
 USTRUCT( BlueprintType )
 struct FNvFlexParameters
