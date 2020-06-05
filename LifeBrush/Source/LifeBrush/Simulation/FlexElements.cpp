@@ -2798,13 +2798,12 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 
 	UTimelineSimulation* timeline = simulationManager->simulation<UTimelineSimulation>();
 
+
 	//first loop is to find the DNA unbound to GTF 
 	for (FCentralDog_DNA_GraphObject& dna : DNAObjects)
 	{
 
-
 		if (!dna.isValid())continue;
-
 		auto nodeIndex = dna.nodeIndex;
 
 
@@ -2813,241 +2812,271 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 
 		if (!dnaNode.hasComponent<FFlexParticleObject>())
 			continue;
-
-		float interactionRadiusSqrd = 100 * 100;
+		float interactionRadiusSqrd = 9999 * 9999;
 		float bindingRadiusSqrd = 2 * 2;
 
 		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
 		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
 
 		float nearestSqrdDistance = std::numeric_limits<float>::max();
+
 		FGraphNodeHandle nearestGTF;
+		FGraphNodeHandle nearestPol;
 
-		//we check if the DNA strand is already being transcribed
-		/*
-		if (dna.isPolBound)
+
+		//if the dna is not bound by GTF we need to find the nearest gtf neighbour
+		if (!dna.isGTFBound() &&  !dna.hasBeenTranscribed()) 
 		{
-			_spawnRNA(dnaNode.position, dnaNode.orientation, 1);
-			//unbind
-		}
-		*/
-		for (int i = 0; i < neighbourCount; ++i)
-		{
-			//search neighbours for closest GTF
-			int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
-
-			FGraphNode& GTFnode = graph->node(neighbourIndex);
-
-			if (GTFs.componentPtrForNode(GTFnode.handle())== nullptr) continue;
-
-			FCentralDog_TranscriptFactors_GraphObject& GTFgraphObj = GTFnode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
-			
-			FVector direction = dnaNode.position - GTFnode.position;
-
-			float distSqrd = direction.SizeSquared();
-
-			if (distSqrd > interactionRadiusSqrd)
-				continue;
-
-			if (distSqrd < nearestSqrdDistance)
+			for (int i = 0; i < neighbourCount; ++i)
 			{
-				nearestSqrdDistance = distSqrd;
-				nearestGTF = FGraphNodeHandle(GTFnode);
+				//search neighbours for closest GTF
+				int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+				FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+
+				if (GTFs.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
+
+				FCentralDog_TranscriptFactors_GraphObject& GTFgraphObj = neighbourNode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
+
+				FVector direction = dnaNode.position - neighbourNode.position;
+
+				float distSqrd = direction.SizeSquared();
+
+				if (distSqrd > interactionRadiusSqrd)
+					continue;
+
+				else if (distSqrd < nearestSqrdDistance)
+				{
+
+					nearestSqrdDistance = distSqrd;
+					nearestGTF = FGraphNodeHandle(neighbourNode);
+				}
+
+
+				break;
 			}
-			
-			break;
+
+			//First we check if the GTF is within the interaction radius. If it is then we will move
+			//the GTF closer to the DNA strand. 
+			//Then we see if the GTF is within binding proximity.
+
+			if (nearestGTF && !nearestGTF.node(*graph).component<FCentralDog_TranscriptFactors_GraphObject>(graph).isDNABound())
+			{
+
+				FGraphNode& GTFnode = nearestGTF(graph);
+
+				
+				if (!GTFnode.hasComponent<FVelocityGraphObject>())
+					GTFnode.addComponent<FVelocityGraphObject>(*graph);
+
+				FVector directToDNA = (dnaNode.position - GTFnode.position);	//FVEctor is an offset vector so the GTF binds the mesh :/
+
+																				//start moving the GTF closer to the DNA
+				FVelocityGraphObject& gtfVel = GTFnode.component<FVelocityGraphObject>(*graph);
+				gtfVel.linearVelocity = directToDNA;
+
+				
+				float distSqrd = directToDNA.SizeSquared();
+				
+				if (distSqrd > bindingRadiusSqrd)
+					continue;
+
+				//if GTF is close enough to bind DNA, initiate binding and create an RNA node
+
+				if (distSqrd < bindingRadiusSqrd)
+				{
+
+					bindGTFtoDNA(dna, GTFnode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph));
+				}
+
+
+			}
+
+
 		}
 
-		//First we check if the GTF is within the interaction radius. If it is then we will move
-		//the GTF closer to the DNA strand. 
-		//Then we see if the GTF is within binding proximity.
+		//if dna is already bound by GTF now we look for rna Pol
+		if (dna.isGTFBound())
+		{
+			for (int i = 0; i < neighbourCount; ++i)
+			{
+				int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
 
-		if (nearestGTF)
+				FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+				if (polymerases.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
+				FCentralDog_Polymerase_GraphObject& rnaPolGraphObj = neighbourNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
+
+
+				FVector direction = dnaNode.position - neighbourNode.position;
+				float distSqrd = direction.SizeSquared();
+
+				if (distSqrd > interactionRadiusSqrd)
+					continue;
+				if (distSqrd < nearestSqrdDistance)
+				{
+					nearestSqrdDistance = distSqrd;
+					nearestPol = FGraphNodeHandle(neighbourNode);
+				}
+
+				break;
+
+			}
+
+			if (nearestPol && !nearestPol.node(*graph).component<FCentralDog_Polymerase_GraphObject>(graph).isDNABound())
+			{
+				FGraphNode& polNode = nearestPol(graph);
+
+				if (!polNode.hasComponent<FVelocityGraphObject>())
+					polNode.addComponent<FVelocityGraphObject>(*graph);
+
+
+				FVector directToDNA = (dnaNode.position - polNode.position);
+
+				//start moving RNA Pol towards the GTF
+				FVelocityGraphObject& polVel = polNode.component<FVelocityGraphObject>(*graph);
+				polVel.linearVelocity = directToDNA;
+
+				float distSqrd = directToDNA.SizeSquared();
+
+				//UE_LOG(LogTemp, Warning, TEXT("Pol - distSqrd:%d bindingRadiusSqrd:%f  "), distSqrd, bindingRadiusSqrd);
+
+				//now we see if the RNA pol is within binding distance of the GTF
+				if (distSqrd > bindingRadiusSqrd)
+					continue;
+
+				if (distSqrd < bindingRadiusSqrd)
+				{
+					bindPolToDNA(dna, nearestPol.node(*graph).component<FCentralDog_Polymerase_GraphObject>(graph));
+
+				}
+
+			}
+
+
+		}
+
+
+		if (dna.isBeingTranscribed())
 		{
 
-			FGraphNode& GTFnode = nearestGTF(graph);
+			if (dna.transcriptionTimer < 0.f) {
+
+				_spawnRNA(dnaNode.position, dnaNode.orientation, 1);
+				unbindGTFfromDNA(dna);
+				unbindPolFromDNA(dna);
+
+			}
+
+			dna.transcriptionTimer -= deltaT;
+		}
+
+	}
 
 
-			if (!GTFnode.hasComponent<FVelocityGraphObject>())
-				GTFnode.addComponent<FVelocityGraphObject>(*graph);
-
-			FVector directToDNA = (dnaNode.position - GTFnode.position);	//FVEctor is an offset vector so the GTF binds the mesh :/
-			
-			//start moving the GTF closer to the DNA
-			FVelocityGraphObject& gtfVel = GTFnode.component<FVelocityGraphObject>(*graph);
-			gtfVel.linearVelocity = directToDNA;
 	
-
-			float distSqrd = directToDNA.SizeSquared();
-
-			if (distSqrd > bindingRadiusSqrd)
-				continue;
-
-			//if GTF is close enough to bind DNA, initiate binding and create an RNA node
-
-			if ((distSqrd < bindingRadiusSqrd) && !GTFnode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph).isDNABound)
-			{
-
-				bindGTFtoDNA(dna, GTFnode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph));
-			}
-
-
-		}
-
-
-	}
-
-
-	for (FCentralDog_TranscriptFactors_GraphObject& gtf : GTFs)
-	{
-		//UE_LOG(LogTemp, Warning, TEXT("Enter GTF Loop"));
-		if (!gtf.isValid())continue;
-
-		UE_LOG(LogTemp, Warning, TEXT("GTF Loop #:%d"),gtf.nodeIndex);
-
-		FGraphNode& gtfNode = graph->node(gtf.nodeIndex);
-
-		if (!gtfNode.hasComponent<FFlexParticleObject>())
-			continue;
-
-		float interactionRadiusSqrd = 100*100;
-		float bindingRadiusSqrd = 2*2;
-
-		int nodeIndex_flexInternal = apiToInternal[gtf.nodeIndex];
-		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
-
-
-		float nearestSqrdDistance = std::numeric_limits<float>::max();
-		FGraphNodeHandle nearestRNApol;
-		UE_LOG(LogTemp, Warning, TEXT("GTF NeighbourCount #:%d"), neighbourCount);
-
-
-		for (int i = 0; i < neighbourCount; ++i)
-		{
-			int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
-
-			//look at each neighbour, skipping the ones that do not have the 'rna pol' component
-
-			FGraphNode& polNode = graph->node(neighbourIndex);
-			//debugging nodes components
-
-
-			//if (!polNode.hasComponent<FCentralDog_Polymerase_GraphObject>()) continue;
-
-			FCentralDog_Polymerase_GraphObject& rnaPolGraphObj = polNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
-			
-		
-
-			FVector direction = gtfNode.position - polNode.position;
-			float distSqrd = direction.SizeSquared();
-
-			UE_LOG(LogTemp, Warning, TEXT("GTF neighbour #:%d  "), neighbourIndex);
-
-			//find closest RNAPol
-			if (distSqrd > interactionRadiusSqrd)
-				continue;
-
-			if (distSqrd < nearestSqrdDistance)
-			{
-				nearestSqrdDistance = distSqrd;
-				nearestRNApol = FGraphNodeHandle(polNode);
-			}
-			break;
-
-		}
-
-		if (nearestRNApol)
-		{
-			FGraphNode& polNode = nearestRNApol(graph);
-
-			if (!polNode.hasComponent<FVelocityGraphObject>())
-				polNode.addComponent<FVelocityGraphObject>(*graph);
-
-
-			FVector directToGTF = (gtfNode.position - polNode.position);
-
-			//start moving RNA Pol towards the GTF
-			FVelocityGraphObject& polVel = polNode.component<FVelocityGraphObject>(*graph);
-			polVel.linearVelocity = directToGTF;
-
-			float distSqrd = directToGTF.SizeSquared();
-
-			UE_LOG(LogTemp, Warning, TEXT("Pol - distSqrd:%d bindingRadiusSqrd:%f  "), distSqrd, bindingRadiusSqrd);
-
-			//now we see if the RNA pol is within binding distance of the GTF
-			if (distSqrd > bindingRadiusSqrd)
-				continue;
-
-			if (distSqrd < bindingRadiusSqrd)
-			{
-
-				bindPolToDNA(gtf, polNode.component<FCentralDog_Polymerase_GraphObject>(*graph));
-
-			}
-		}
-	}
 
 	graph->endTransaction();
 	
 }
 
+void UCentralDogmaSimulation::unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Unbind Pol:%d from DNA:%d"), dna.boundPolIndex, dna.nodeIndex);
 
-void UCentralDogmaSimulation::bindPolToDNA(FCentralDog_TranscriptFactors_GraphObject& gtf, FCentralDog_Polymerase_GraphObject& rnaPol) {
+	FGraphNode& polNode = graph->node(dna.boundPolIndex);
+	polNode.removeComponent<FStabalizedPosition>(*graph);
 
-	UE_LOG(LogTemp, Warning, TEXT("Enter bindPolToDNA()"));
+	FCentralDog_Polymerase_GraphObject& polGraphObj = polNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
+	polGraphObj.setDNABound(false);
 
-	//memory access violation somewhere below
-	/*
-	FGraphNode& rnaNode = graph->node(rnaPol.nodeIndex);
-	FGraphNode& gtfNode = graph->node(gtf.nodeIndex);
-	rnaPol.isDNABound = true;
+	dna.setPolBound(false);
+	dna.setHasBeenTranscribed(true);
+}
 
-	//get reference to DNA node so we can denote it as being RNAPol bound
-	FGraphNode& dnaNode = graph->node(gtf.boundDNAnodeIndex);
-	dnaNode.component<FCentralDog_DNA_GraphObject>(*graph).isPolBound = true;
+void UCentralDogmaSimulation::unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Unbind GTF:%d from DNA:%d"), dna.boundGTFIndex, dna.nodeIndex);
+
+	FGraphNode& gtfNode = graph->node(dna.boundGTFIndex);
+	gtfNode.removeComponent<FStabalizedPosition>(*graph);
+
+	FCentralDog_TranscriptFactors_GraphObject& gtfGraphObj = gtfNode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
+	gtfGraphObj.setDNABound(false);
+
+	dna.setGTFBound(false);
+
+}
+
+void UCentralDogmaSimulation::bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol) {
+
+	UE_LOG(LogTemp, Warning, TEXT("Bind Pol#%d to dna#%d"),rnaPol.nodeIndex,dna.nodeIndex);
+
+	rnaPol.setDNABound(true);
+
+	dna.transcriptionTimer = 5.f;
+	dna.setPolBound(true);
+	dna.boundPolIndex = rnaPol.nodeIndex;
 	
-
+	FGraphNode& rnaNode = graph->node(rnaPol.nodeIndex);
+	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
+	
+	
+	
+	//get reference to DNA node so we can denote it as being RNAPol bound
+	//FGraphNode& dnaNode = graph->node(gtf.boundDNAnodeIndex);
+	//dnaNode.component<FCentralDog_DNA_GraphObject>(*graph).setPolBound(true);
+	
+	
 	//set an offset so it appears it is binding in the right position
 	FVector bindOffset(0.f, 0.f, 0.f);
 	if (!rnaNode.hasComponent<FStabalizedPosition>())
 		rnaNode.addComponent<FStabalizedPosition>(*graph);
-	rnaNode.component<FStabalizedPosition>(*graph).position = gtfNode.position + bindOffset;
+	rnaNode.component<FStabalizedPosition>(*graph).position = dnaNode.position + bindOffset;
 	rnaNode.component<FStabalizedPosition>(*graph).strength = 0.3;
-	*/
+	
 }
 
 void UCentralDogmaSimulation::bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf) {
 
-	UE_LOG(LogTemp, Warning, TEXT("Enter bindGTFtoDNA()"));
+	UE_LOG(LogTemp, Warning, TEXT("Bind GTF#%d to DNA#%d"),gtf.nodeIndex,dna.nodeIndex );
 
-
+	
 	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
 	FGraphNode& gtfNode = graph->node(gtf.nodeIndex);
-	
-	dna.isGTFBound = true;
-	gtf.isDNABound = true;
 
+	dna.boundGTFIndex = gtf.nodeIndex;
+
+	dna.setGTFBound(true);
+	gtf.setDNABound(true);
+	
+
+
+	
+	
 	//Store the initial random walk settings so we can restore them later, when the GTF unbinds
 	//dna.defaultRandWalk_MaxOffset = dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
 	//dna.defaultRandWalk_BaseVel = dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
 
 
 	//make the DNA stop moving around so much	
-	//dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
-	//dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.5;
+	dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
+	dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.2;
 
+	/*
 	if (!dnaNode.hasComponent<FStabalizedPosition>())
 		dnaNode.addComponent<FStabalizedPosition>(*graph);
-	dnaNode.component<FStabalizedPosition>(*graph).position = gtfNode.position;	
+	dnaNode.component<FStabalizedPosition>(*graph).position = dnaNode.position;	
 	dnaNode.component<FStabalizedPosition>(*graph).strength = 0.3;
-
+	*/
 	//stabalize the GTFs position and add an offset to make it appear it is actually in contact with DNA
 	FVector bindOffset(0.f, 0.f, 0.f);
 	if (!gtfNode.hasComponent<FStabalizedPosition>()) 
 		gtfNode.addComponent<FStabalizedPosition>(*graph);
 	gtfNode.component<FStabalizedPosition>(*graph).position = dnaNode.position + bindOffset;
 	gtfNode.component<FStabalizedPosition>(*graph).strength = 0.3;
-
+	
 }
 
 FGraphNode& UCentralDogmaSimulation::_spawnRNA(FVector position, FQuat orientation, float scale)

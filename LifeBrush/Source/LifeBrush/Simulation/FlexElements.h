@@ -486,12 +486,24 @@ struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
 	GENERATED_BODY()
 public:
 
-	bool isGTFBound = false;
-	bool isPolBound = false;
+	bool bIsGTFBound = false;
+	bool bIsPolBound = false;
+	bool bHasBeenTranscribed = false;
 
-	//stores the initial randWalk parameters so we can restore them later
-	float defaultRandWalk_MaxOffset;
-	float defaultRandWalk_BaseVel;
+	bool isPolBound() { return bIsPolBound; }
+	bool isGTFBound() { return bIsGTFBound; }
+	bool hasBeenTranscribed() { return bHasBeenTranscribed; }
+	bool isBeingTranscribed() { return isPolBound() && isGTFBound(); }
+
+	void setHasBeenTranscribed(bool b) { bHasBeenTranscribed = b; }
+	void setGTFBound(bool bound) { bIsGTFBound = bound; }
+	void setPolBound(bool bound) { bIsPolBound = bound; }
+
+	float transcriptionTimer;
+
+	//references to bound GTF and Pol objects corresponding to a given DNA strand
+	int32 boundGTFIndex;
+	int32 boundPolIndex;
 
 };
 
@@ -500,7 +512,8 @@ struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
 {
 	GENERATED_BODY()
 
-		
+	
+	
 };
 
 USTRUCT(BlueprintType)
@@ -509,19 +522,27 @@ struct LIFEBRUSH_API FCentralDog_TranscriptFactors_GraphObject : public FGraphOb
 	GENERATED_BODY()
 public:
 
-	bool isDNABound = false;
+	bool bIsDNABound = false;
 
-	//reference to the DNA object the GTF is bound to
-	int32 boundDNAnodeIndex;
+	bool isDNABound() { return bIsDNABound; }
+
+	void setDNABound(bool bound) { bIsDNABound = bound; }
+
+
 };
+
+
 
 USTRUCT(BlueprintType)
 struct LIFEBRUSH_API FCentralDog_Polymerase_GraphObject : public FGraphObject
 {
 	GENERATED_BODY()
 public:
-	bool isDNABound = false;
+	bool bIsDNABound = false;
 
+	bool isDNABound() { return bIsDNABound; }
+
+	void setDNABound(bool bound) { bIsDNABound = bound; }
 };
 
 
@@ -560,7 +581,9 @@ protected:
 	FGraphNode& _spawnRNA(FVector position, FQuat orientation, float scale);
 
 	void bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf);
-	void bindPolToDNA(FCentralDog_TranscriptFactors_GraphObject& gtf, FCentralDog_Polymerase_GraphObject& rnaPol);
+	void bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol);
+	void unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna);
+	void unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna);
 	
 
 };
