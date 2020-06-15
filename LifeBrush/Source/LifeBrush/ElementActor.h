@@ -15,6 +15,9 @@
 
 class UGraphSimulationManager;
 
+
+
+
 UENUM(Blueprintable)
 enum class ESpaceMode : uint8
 {
@@ -75,6 +78,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RG")
 	EAggregateProxyParticleOrMember particleOrMember = EAggregateProxyParticleOrMember::Particle;
 
+
+
 public:	
 	// Sets default values for this actor's properties
 	AElementActor();
@@ -91,6 +96,8 @@ public:
 
 	void showSelectionOutline();
 	void hideSelectionOutline();
+
+	FString getActorName();
 
 protected:
 	void _loadAggregate(FGraphNodeHandle elementNode, FGraph& graph);
@@ -116,4 +123,6 @@ protected:
 		TArray<FGraphNodeHandle>& aggregatesInBody);
 
 	void _setSelectionOutlineVisibility(bool visibility);
+
+
 };

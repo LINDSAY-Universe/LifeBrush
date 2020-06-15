@@ -91,5 +91,7 @@ protected:
 protected:
 	bool _isSelecting = false;
 
+public:
+	UPROPERTY(BlueprintReadOnly)
 	TSet<AElementActor*> _selection;
 };

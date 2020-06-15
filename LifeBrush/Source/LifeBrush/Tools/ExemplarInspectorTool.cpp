@@ -149,6 +149,7 @@ void UExemplarInspectorTool::_select(AElementActor * actor)
 	warmupOtherTool(_grabTool);
 	_grabTool->oneHandStart(_selectionA);
 
+
 	// show the UI
 	inspectorActor->setSelection(_selection);
 }

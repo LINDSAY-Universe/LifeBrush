@@ -2789,9 +2789,13 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 	auto& RNAObjects = graph->componentStorage<FCentralDog_RNA_GraphObject>();
 	auto& GTFs = graph->componentStorage<FCentralDog_TranscriptFactors_GraphObject>();
 	auto& polymerases = graph->componentStorage<FCentralDog_Polymerase_GraphObject>();
+	auto& ribosomes = graph->componentStorage<FCentralDog_Ribosome_GraphObject>();
 
 
 	const int stride = maxParticles;
+
+	float interactionRadiusSqrd = 9999 * 9999;
+	float bindingRadiusSqrd = 2 * 2;
 
 	graph->beginTransaction();
 
@@ -2812,8 +2816,7 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 
 		if (!dnaNode.hasComponent<FFlexParticleObject>())
 			continue;
-		float interactionRadiusSqrd = 9999 * 9999;
-		float bindingRadiusSqrd = 2 * 2;
+
 
 		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
 		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
@@ -2834,8 +2837,10 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 
 				FGraphNode& neighbourNode = graph->node(neighbourIndex);
 
+				
 
 				if (GTFs.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
+				
 
 				FCentralDog_TranscriptFactors_GraphObject& GTFgraphObj = neighbourNode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
 
@@ -2846,7 +2851,7 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 				if (distSqrd > interactionRadiusSqrd)
 					continue;
 
-				else if (distSqrd < nearestSqrdDistance)
+				if (distSqrd < nearestSqrdDistance)
 				{
 
 					nearestSqrdDistance = distSqrd;
@@ -2905,9 +2910,10 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 
 				FGraphNode& neighbourNode = graph->node(neighbourIndex);
 
+				//UE_LOG(LogTemp, Warning, TEXT("Pre continue"));
 				if (polymerases.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
 				FCentralDog_Polymerase_GraphObject& rnaPolGraphObj = neighbourNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
-
+				//UE_LOG(LogTemp, Warning, TEXT("Post continue"));
 
 				FVector direction = dnaNode.position - neighbourNode.position;
 				float distSqrd = direction.SizeSquared();
@@ -2973,13 +2979,92 @@ void UCentralDogmaSimulation::flexTick(float deltaT,
 		}
 
 	}
+	
+	for (FCentralDog_RNA_GraphObject& rna : RNAObjects)
+	{
+		if (!rna.isValid())continue;
+		auto nodeIndex = rna.nodeIndex;
 
+		FGraphNode& rnaNode = graph->node(nodeIndex);
+
+		if (!rnaNode.hasComponent<FFlexParticleObject>())
+			continue;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		float nearestSqrdDistance = std::numeric_limits<float>::max();
+
+		FGraphNodeHandle nearestRibosome;
+
+		for (int i = 0; i < neighbourCount; ++i)
+		{
+			int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+			FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+			if (ribosomes.componentPtrForNode(neighbourNode.handle()) == nullptr)continue;
+
+			FCentralDog_Ribosome_GraphObject& riboGraphObj = neighbourNode.component<FCentralDog_Ribosome_GraphObject>(*graph);
+			
+			FVector directToRNA = rnaNode.position - neighbourNode.position;
+			float distSqrd = directToRNA.SizeSquared();
+
+			if (distSqrd > interactionRadiusSqrd)
+				continue;
+
+			if (distSqrd < nearestSqrdDistance)
+			{
+				nearestSqrdDistance = distSqrd;
+				nearestRibosome = FGraphNodeHandle(neighbourNode);
+			}
+			break;
+		}
+
+		if (nearestRibosome && !rna.isRiboBound())
+		{
+			FGraphNode& riboNode = nearestRibosome(graph);
+
+			if (!riboNode.hasComponent<FVelocityGraphObject>())
+				riboNode.addComponent<FVelocityGraphObject>(*graph);
+
+			FVector directToRNA = (rnaNode.position - riboNode.position);
+
+			FVelocityGraphObject& riboVel = riboNode.component<FVelocityGraphObject>(*graph);
+			riboVel.linearVelocity = directToRNA;
+
+			float distSqrd = directToRNA.SizeSquared();
+
+			if (distSqrd > bindingRadiusSqrd)
+				continue;
+
+			if (distSqrd < bindingRadiusSqrd)
+			{
+				bindRiboToRNA(rna, riboNode.component<FCentralDog_Ribosome_GraphObject>(*graph));
+			}
+
+
+		}
+
+		if (rna.isRiboBound())
+		{
+			UE_LOG(LogTemp,Warning,TEXT("rna %d translation timer: %f"),rna.nodeIndex,rna.translationTimer)
+			if (rna.translationTimer < 0.f)
+			{
+				_spawnProtein(rnaNode.position, rnaNode.orientation, 1);
+				unbindRiboFromRNA(rna);
+			}
+		}
+
+	}
+	
 
 	
 
 	graph->endTransaction();
 	
 }
+
 
 void UCentralDogmaSimulation::unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna)
 {
@@ -2988,8 +3073,16 @@ void UCentralDogmaSimulation::unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna)
 	FGraphNode& polNode = graph->node(dna.boundPolIndex);
 	polNode.removeComponent<FStabalizedPosition>(*graph);
 
+	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
+
 	FCentralDog_Polymerase_GraphObject& polGraphObj = polNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
 	polGraphObj.setDNABound(false);
+
+	//restore original random walk values
+	FRandomWalkGraphObject& dnaRand = dnaNode.component<FRandomWalkGraphObject>(*graph);
+	dnaRand.baseVelocity = dna.defaultRandWalk_BaseVel;
+	dnaRand.maxVelocityOffset = dna.defaultRandWalk_MaxOff;
+	
 
 	dna.setPolBound(false);
 	dna.setHasBeenTranscribed(true);
@@ -3009,9 +3102,57 @@ void UCentralDogmaSimulation::unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna)
 
 }
 
+void UCentralDogmaSimulation::unbindRiboFromRNA(FCentralDog_RNA_GraphObject& rna) {
+	UE_LOG(LogTemp, Warning, TEXT("Unbind Ribosome:#%d from RNA:#%d"), rna.boundRiboIndex, rna.nodeIndex);
+
+	FGraphNode& riboNode = graph->node(rna.boundRiboIndex);
+	riboNode.removeComponent<FStabalizedPosition>(*graph);
+	
+	FCentralDog_Ribosome_GraphObject& riboGraphObj = riboNode.component<FCentralDog_Ribosome_GraphObject>(*graph);
+	riboGraphObj.setRNABound(false);
+
+
+	FGraphNode& rnaNode = graph->node(rna.nodeIndex);
+	FRandomWalkGraphObject& rnaRand = rnaNode.component<FRandomWalkGraphObject>(*graph);
+	rnaRand.baseVelocity = rna.defaultRandWalk_BaseVel;
+	rnaRand.maxVelocityOffset = rna.defaultRandWalk_MaxOff;
+
+
+	rna.setIsRiboBound(false);
+	
+
+}
+
+void UCentralDogmaSimulation::bindRiboToRNA(FCentralDog_RNA_GraphObject& rna, FCentralDog_Ribosome_GraphObject& ribo)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Bind Ribo:#%d to RNA:#%d"), ribo.nodeIndex, rna.nodeIndex);
+
+	ribo.setRNABound(true);
+	
+	rna.boundRiboIndex = ribo.nodeIndex;
+	rna.setIsRiboBound(true);
+	rna.translationTimer = 5.f;
+	
+	FGraphNode& rnaNode = graph->node(rna.nodeIndex);
+	FGraphNode& riboNode = graph->node(ribo.nodeIndex);
+
+	rna.defaultRandWalk_MaxOff = rnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
+	rna.defaultRandWalk_BaseVel = rnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
+
+	rnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
+	rnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.1;
+
+	if (!rnaNode.hasComponent<FStabalizedPosition>())
+		riboNode.addComponent<FStabalizedPosition>(*graph);
+
+	riboNode.component<FStabalizedPosition>(*graph).position = rnaNode.position;
+	riboNode.component<FStabalizedPosition>(*graph).strength = 0.3;
+
+}
+
 void UCentralDogmaSimulation::bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol) {
 
-	UE_LOG(LogTemp, Warning, TEXT("Bind Pol#%d to dna#%d"),rnaPol.nodeIndex,dna.nodeIndex);
+	UE_LOG(LogTemp, Warning, TEXT("Bind Pol#%d to DNA#%d"),rnaPol.nodeIndex,dna.nodeIndex);
 
 	rnaPol.setDNABound(true);
 
@@ -3021,7 +3162,6 @@ void UCentralDogmaSimulation::bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCe
 	
 	FGraphNode& rnaNode = graph->node(rnaPol.nodeIndex);
 	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
-	
 	
 	
 	//get reference to DNA node so we can denote it as being RNAPol bound
@@ -3052,17 +3192,14 @@ void UCentralDogmaSimulation::bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCe
 	gtf.setDNABound(true);
 	
 
-
-	
-	
 	//Store the initial random walk settings so we can restore them later, when the GTF unbinds
-	//dna.defaultRandWalk_MaxOffset = dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
-	//dna.defaultRandWalk_BaseVel = dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
+	dna.defaultRandWalk_MaxOff = dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
+	dna.defaultRandWalk_BaseVel = dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
 
 
 	//make the DNA stop moving around so much	
 	dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
-	dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.2;
+	dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.1;
 
 	/*
 	if (!dnaNode.hasComponent<FStabalizedPosition>())
@@ -3070,6 +3207,7 @@ void UCentralDogmaSimulation::bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCe
 	dnaNode.component<FStabalizedPosition>(*graph).position = dnaNode.position;	
 	dnaNode.component<FStabalizedPosition>(*graph).strength = 0.3;
 	*/
+
 	//stabalize the GTFs position and add an offset to make it appear it is actually in contact with DNA
 	FVector bindOffset(0.f, 0.f, 0.f);
 	if (!gtfNode.hasComponent<FStabalizedPosition>()) 
@@ -3079,9 +3217,35 @@ void UCentralDogmaSimulation::bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCe
 	
 }
 
+FGraphNode& UCentralDogmaSimulation::_spawnProtein(FVector position, FQuat orientation, float scale)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Translated Protein Spawned"));
+
+	//create new node
+	FGraphNode& node = graph->node(graph->addNode(position, orientation, scale));
+
+	//Create components for that node
+	for (FTimStructBox& box : translatedProteinTemplate)
+	{
+		if (!box.IsValid())
+			continue;
+
+		ComponentType type = FGraphObject::componentType(box.scriptStruct);
+
+		FGraphObject* obj = node.addComponent(*graph, type);
+
+		box.scriptStruct->CopyScriptStruct(obj, box.structMemory);
+
+		obj->nodeIndex = node.id;
+
+	}
+
+	return node;
+}
+
 FGraphNode& UCentralDogmaSimulation::_spawnRNA(FVector position, FQuat orientation, float scale)
 {
-	
+	UE_LOG(LogTemp, Warning, TEXT("Spawn RNA"));
 	FGraphNode& node = graph->node(graph->addNode(position, orientation, scale));
 	
 	//spawn components
@@ -3102,7 +3266,15 @@ FGraphNode& UCentralDogmaSimulation::_spawnRNA(FVector position, FQuat orientati
 		object->nodeIndex = node.id;
 
 	}
-	
+
+	/*
+	//send those badboys outside the nucleus
+	if (!node.hasComponent<FVelocityGraphObject>())
+		node.addComponent<FVelocityGraphObject>(*graph);
+
+	FVelocityGraphObject& rnaVel = node.component<FVelocityGraphObject>(*graph);
+	rnaVel.linearVelocity = node.component<FCentralDog_RNA_GraphObject>(*graph).outerMembranePoint - node.position;
+	*/
 	return node;
 	
 }

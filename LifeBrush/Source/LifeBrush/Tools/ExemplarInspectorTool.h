@@ -98,6 +98,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LifeBrush")
 	float overlapRadius = 10.0f;
 
+
+
 public:
 	UPROPERTY()
 	AExemplarInspectorActor * inspectorActor;
@@ -105,6 +107,7 @@ public:
 	UCameraComponent * _camera;
 	UDiscreteElementEditorComponent * _elementEditor;
 
+	UPROPERTY(BlueprintReadOnly)
 	AElementActor * _selection = nullptr;
 
 	UPROPERTY()

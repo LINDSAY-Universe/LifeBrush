@@ -478,7 +478,14 @@ public:
 	virtual ~UEvent_spawnRNA() {}
 };
 
+UCLASS(BlueprintType)
+class LIFEBRUSH_API UEvent_SpawnProtein : public USEGraphEvent
+{
+	GENERATED_BODY()
 
+public:
+	virtual ~UEvent_SpawnProtein() {}
+};
 
 USTRUCT(BlueprintType)
 struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
@@ -501,6 +508,10 @@ public:
 
 	float transcriptionTimer;
 
+	//used to store initial random walk values so we can restore them after DNA is unbound
+	float defaultRandWalk_MaxOff;
+	float defaultRandWalk_BaseVel;
+
 	//references to bound GTF and Pol objects corresponding to a given DNA strand
 	int32 boundGTFIndex;
 	int32 boundPolIndex;
@@ -512,8 +523,42 @@ struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
 {
 	GENERATED_BODY()
 
+public:
+		
+	FVector outerMembranePoint = FVector (-1.f, 103.f, 174.f);
+	int32 boundRiboIndex = NULL;
+
+	float translationTimer;
+
+	float defaultRandWalk_MaxOff;
+	float defaultRandWalk_BaseVel;
+		
+	bool bHasBeenTranslated = false;
+	bool bIsRiboBound = false;
+
+	bool isRiboBound() { return bIsRiboBound; }
+	bool hasBeenTranslated() { return bHasBeenTranslated; }
+
+	void setIsRiboBound(bool b) { bIsRiboBound = b; }
+	void setHasBeenTranslated(bool b) { bHasBeenTranslated = b; }
+
+
 	
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_Ribosome_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
 	
+
+	bool bIsRNABound = false;
+
+	bool isRNABound() { return bIsRNABound; }
+
+	void setRNABound(bool b) { bIsRNABound = b; }
 };
 
 USTRUCT(BlueprintType)
@@ -546,6 +591,7 @@ public:
 };
 
 
+
 //Simulation showing transcription and translation of DNA
 UCLASS()
 class LIFEBRUSH_API UCentralDogmaSimulation : public UObjectSimulation, public IFlexGraphSimulation
@@ -557,6 +603,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
 	TArray<FTimStructBox> rnaTemplate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
+		TArray<FTimStructBox> translatedProteinTemplate;
 		
 protected:
 	virtual void attach() override;
@@ -579,9 +628,13 @@ protected:
 
 
 	FGraphNode& _spawnRNA(FVector position, FQuat orientation, float scale);
+	FGraphNode& _spawnProtein(FVector position, FQuat orientation, float scale);
 
 	void bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf);
 	void bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol);
+	void bindRiboToRNA(FCentralDog_RNA_GraphObject& rna, FCentralDog_Ribosome_GraphObject& ribo);
+
+	void unbindRiboFromRNA(FCentralDog_RNA_GraphObject& rna);
 	void unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna);
 	void unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna);
 	

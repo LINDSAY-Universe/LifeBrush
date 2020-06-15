@@ -267,6 +267,11 @@ void AElementActor::_setSelectionOutlineVisibility(bool visibility)
 	}
 }
 
+FString AElementActor::getActorName()
+{
+	return this->GetName();
+}
+
 void AElementActor::showSelectionOutline()
 {
 	_setSelectionOutlineVisibility(true);

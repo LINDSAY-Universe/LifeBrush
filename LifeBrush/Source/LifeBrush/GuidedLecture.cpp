@@ -30,7 +30,7 @@ void AGuidedLecture::BuildVocabDictionary(TArray<FLectureSlide> inSlide)
 		FRegexPattern defPattern("//g");				//captures :definiton}
 
 		FRegexMatcher paragraphMatcher(paragraphPattern, temp_string);
-
+		
 
 		int32 matchIndex = 0;
 
@@ -86,5 +86,26 @@ void AGuidedLecture::Tick(float DeltaTime)
 
 }
 
+// Sets default values
+ATutorialLecture::ATutorialLecture()
+{
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = true;
+
+}
+
+// Called when the game starts or when spawned
+void ATutorialLecture::BeginPlay()
+{
+	Super::BeginPlay();
+
+}
+
+// Called every frame
+void ATutorialLecture::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
 
 

@@ -19,10 +19,11 @@ public:
 
 	//The palette that will be available to user on a given slide
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-		TArray<AElementActor*> slidePalette;
-	
+	TArray<AElementActor*> slidePalette;
 
 };
+
+
 
 
 UCLASS()
@@ -43,6 +44,7 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	TArray<FLectureSlide> slideSet;
 
+
 	//Where we will store the highlighted words and their definitions
 	UPROPERTY(BlueprintReadWrite)
 	TMap<FString, FString> vocabDictionary;
@@ -51,13 +53,36 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void BuildVocabDictionary(TArray<FLectureSlide> inSlide);
 	
-	
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	
-	
 };
+
+UCLASS()
+class LIFEBRUSH_API ATutorialLecture : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	ATutorialLecture();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool makeExemplarInvisible;
+
+	//References to the exemplar actors that we will toggle invisibility
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<AActor*> exemplarActors;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+};
+
 
