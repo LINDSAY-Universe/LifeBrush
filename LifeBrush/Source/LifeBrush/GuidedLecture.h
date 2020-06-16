@@ -74,11 +74,12 @@ protected:
 
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool makeExemplarInvisible;
+	bool isExemplarVisible;
 
 	//References to the exemplar actors that we will toggle invisibility
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<AActor*> exemplarActors;
+
 
 public:
 	// Called every frame
