@@ -7,6 +7,18 @@
 #include "ElementActor.h"
 #include "GuidedLecture.generated.h"
 
+
+UENUM(BlueprintType)
+enum class EControllerEmphasis : uint8
+{
+	EGrip,
+	ETrig,
+	EAbutton,
+	EBbutton,
+	Ethumb,
+	
+};
+
 USTRUCT(BlueprintType)
 struct LIFEBRUSH_API FLectureSlide
 {
@@ -20,6 +32,9 @@ public:
 	//The palette that will be available to user on a given slide
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<AElementActor*> slidePalette;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UTexture2D* displayImage;
 
 };
 
@@ -44,6 +59,8 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	TArray<FLectureSlide> slideSet;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	int startingSlide = 0;
 
 	//Where we will store the highlighted words and their definitions
 	UPROPERTY(BlueprintReadWrite)
@@ -78,7 +95,10 @@ protected:
 
 	//References to the exemplar actors that we will toggle invisibility
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<AActor*> exemplarActors;
+	TArray<AElementActor*> exemplarActors;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	APawn* SketchyPawn;
 
 
 public:
