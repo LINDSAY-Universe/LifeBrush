@@ -31,6 +31,13 @@ class LIFEBRUSH_API AElementActor : public AStaticMeshActor
 	GENERATED_BODY()
 	
 public:
+
+	//information fields that will be used by the exemplar information panel
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Info Panel")
+	bool displayOnInfoPanel;
+
+
 	// Whether the UStaticMeshComponent attached to this actor should be the basis for an
 	// FGraphMesh. False means we don't automatically attach one to the node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent Library")

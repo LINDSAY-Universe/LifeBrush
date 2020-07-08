@@ -19,6 +19,19 @@ enum class EControllerEmphasis : uint8
 	
 };
 
+UENUM(BlueprintType)
+enum class ECanvasExample : uint8
+{
+	EADP,
+	EHydrogen,
+	EIMS,
+	EInMembrane,
+	EJunction,
+	EMatrix,
+	ESynthase,
+	EAll,
+};
+
 USTRUCT(BlueprintType)
 struct LIFEBRUSH_API FLectureSlide
 {
@@ -29,7 +42,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (MultiLine = true))
 	FText textBody;
 
-	//The palette that will be available to user on a given slide
+	//The Element Actors in each slides palette will be invisible until that slide is reached
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<AElementActor*> slidePalette;
 
@@ -39,7 +52,18 @@ public:
 };
 
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FPaletteSlide
+{
+	GENERATED_USTRUCT_BODY()
 
+public:
+
+	//The Element Actors in each slides palette will be invisible until that slide is reached
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<AElementActor*> slidePalette;
+
+};
 
 UCLASS()
 class LIFEBRUSH_API AGuidedLecture : public AActor
@@ -89,17 +113,63 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool isExemplarVisible;
 
-	//References to the exemplar actors that we will toggle invisibility
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TArray<AElementActor*> exemplarActors;
+	AActor* exemplar;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	AActor* completedCanvas;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	APawn* SketchyPawn;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	AActor* ADP_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	AActor* Hydrogen_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* IMS_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* inMembrane_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* Junction_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* Matrix_Snap;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* Synthase_Snap;
+	
+	TArray<AActor*> snapshots;
+
+public:
+	// Called every frame
+	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION(BlueprintCallable)
+	void SetVisibilityOfAllSnapshots(bool b);
+};
+
+UCLASS()
+class LIFEBRUSH_API ATemplateLecture : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	ATemplateLecture();
+
+protected:
+	// Called when the game starts or when spawned
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TArray<FPaletteSlide> slidePalette;
+	
 
 public:
 	// Called every frame

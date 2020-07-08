@@ -46,6 +46,8 @@ void USelectionTool::tickOneHand( float dt, UPrimitiveComponent * hand, FTransfo
 		_tickGroupSelection(dt, hand);
 	else
 		_tickSelection(dt, hand);
+
+	
 }
 
 void USelectionTool::_tickGroupSelection(float dt, UPrimitiveComponent * hand)
@@ -150,6 +152,7 @@ void USelectionTool::_tickSelection(float dt, UPrimitiveComponent * hand)
 
 		if (!elementActor->GetRootComponent()->IsVisible())
 			continue;
+
 
 		if (selectionMode == ESelectionToolMode::Adding)
 		{
@@ -299,6 +302,7 @@ void USelectionTool::_destroySelectionMeshComponent()
 
 void USelectionTool::_hideSelection( TSet<AElementActor*>& selected )
 {
+
 	for(AElementActor * elementActor : selected)
 	{
 		elementActor->hideSelectionOutline();
