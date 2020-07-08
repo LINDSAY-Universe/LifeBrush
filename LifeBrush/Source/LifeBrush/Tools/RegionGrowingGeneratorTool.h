@@ -94,4 +94,7 @@ protected:
 public:
 	UPROPERTY(BlueprintReadOnly)
 	TSet<AElementActor*> _selection;
+
+	UPROPERTY(BlueprintReadOnly)
+	FString selectionName;
 };

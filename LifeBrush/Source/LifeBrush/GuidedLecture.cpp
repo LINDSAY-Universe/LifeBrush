@@ -97,6 +97,15 @@ ATutorialLecture::ATutorialLecture()
 // Called when the game starts or when spawned
 void ATutorialLecture::BeginPlay()
 {
+
+	snapshots.Add(ADP_Snap);
+	snapshots.Add(Hydrogen_Snap);
+	snapshots.Add(IMS_Snap);
+	snapshots.Add(inMembrane_Snap);
+	snapshots.Add(Junction_Snap);
+	snapshots.Add(Matrix_Snap);
+	snapshots.Add(Synthase_Snap);
+
 	Super::BeginPlay();
 
 }
@@ -108,4 +117,29 @@ void ATutorialLecture::Tick(float DeltaTime)
 
 }
 
+void ATutorialLecture::SetVisibilityOfAllSnapshots(bool b)
+{
+	for (AActor* snap : snapshots)
+	{
+		snap->SetActorHiddenInGame(b);
+	}
+}
+
+
+ATemplateLecture::ATemplateLecture()
+{
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void ATemplateLecture::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+}
+
+
+void ATemplateLecture::BeginPlay()
+{
+	Super::BeginPlay();
+}
 

@@ -46,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ShipEditor")
 	bool developerMode = true;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tutorial")
+	bool highlightSimulateTab = false;
+
+
 	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "ShipEditor" )
 	USceneComponent * vrScene;
 

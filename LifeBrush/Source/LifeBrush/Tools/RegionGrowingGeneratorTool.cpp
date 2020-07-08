@@ -277,7 +277,11 @@ void URegionGrowingGeneratorTool::_tickSelection(float dt, UPrimitiveComponent *
 	for (auto actor : elementActors)
 	{
 		_selection.Add(actor);
+		selectionName = actor->getActorName();
 	}
+
+	//change actor nametag
+	
 
 	_showSelection();
 }
@@ -297,6 +301,7 @@ void URegionGrowingGeneratorTool::_showSelection()
 	for (AElementActor * elementActor : _selection)
 	{
 		elementActor->showSelectionOutline();
+		
 	}
 }
 
