@@ -26,6 +26,7 @@ enum class ECanvasExample : uint8
 	EHydrogen,
 	EIMS,
 	EInMembrane,
+	ELipids,
 	EJunction,
 	EMatrix,
 	ESynthase,
