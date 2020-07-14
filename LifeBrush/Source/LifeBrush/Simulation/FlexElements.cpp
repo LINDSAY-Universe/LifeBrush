@@ -1915,7 +1915,38 @@ void URandomWalkSimulation::tick( float deltaT )
 }
 
 
+int UATPSynthaseSimulation::getNumberOfParticles(ECanvasExample ex)
+{
+	int num = -1;
+	auto& ADPs = graph->componentStorage<FADPGraphObject>();
+	auto& hydrogens = graph->componentStorage<FHydrogenGraphObject>();
 
+	switch (ex)
+	{
+	case ECanvasExample::EADP:
+		num = ADPs._size;
+	case ECanvasExample::EHydrogen:
+		num = hydrogens._size;
+	case ECanvasExample::EIMS:
+		break;
+	case ECanvasExample::EInMembrane:
+		break;
+	case ECanvasExample::ELipids:
+		break;
+	case ECanvasExample::EJunction:
+		break;
+	case ECanvasExample::EMatrix:
+		break;
+	case ECanvasExample::ESynthase:
+		break;
+	case ECanvasExample::EAll:
+		break;
+	default:
+		break;
+	}
+
+	return num;
+}
 
 void UATPSynthaseSimulation::attach()
 {

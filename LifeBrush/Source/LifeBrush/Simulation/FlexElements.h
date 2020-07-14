@@ -15,7 +15,7 @@
 #include "ShipEditorSimulation/GraphSnapshot.h"
 #include "Visualization/Timeline.h"
 #include "Visualization/EdgeFactory.h"
-
+#include "GuidedLecture.h"
 
 #include "InstanceManager.h"
 #include "RegionGrowingComponent.h"
@@ -327,6 +327,9 @@ public:
 	std::shared_ptr<tcodsMeshInterface> meshInterface;
 
 	FTransform toWorld;
+
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	int getNumberOfParticles(ECanvasExample ex);
 
 protected:
 	void _tickFollowPath(float deltaT);

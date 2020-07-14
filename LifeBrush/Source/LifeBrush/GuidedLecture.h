@@ -20,6 +20,15 @@ enum class EControllerEmphasis : uint8
 };
 
 UENUM(BlueprintType)
+enum class EUIEmphasis : uint8
+{
+	ECanvas,
+	EPalette,
+	ENametags,
+	EMitoMatrix,
+};
+
+UENUM(BlueprintType)
 enum class ECanvasExample : uint8
 {
 	EADP,
@@ -146,6 +155,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		AActor* Synthase_Snap;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* Simulation_Actor;
+
 	TArray<AActor*> snapshots;
 
 public:
