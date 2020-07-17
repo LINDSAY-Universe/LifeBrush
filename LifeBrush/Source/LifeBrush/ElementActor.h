@@ -15,8 +15,25 @@
 
 class UGraphSimulationManager;
 
+//structure outlying data fields that will be displayed on information pane
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FInfoPaneText
+{
+	GENERATED_USTRUCT_BODY()
 
+public:
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FText name;
 
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (MultiLine = true))
+	FText Description;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UTexture2D* displayImage;
+	
+};
 
 UENUM(Blueprintable)
 enum class ESpaceMode : uint8
@@ -37,6 +54,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Info Panel")
 	bool displayOnInfoPanel;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Info Panel")
+		FInfoPaneText InfoPane;
 
 	// Whether the UStaticMeshComponent attached to this actor should be the basis for an
 	// FGraphMesh. False means we don't automatically attach one to the node.

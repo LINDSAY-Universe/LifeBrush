@@ -86,6 +86,23 @@ void AGuidedLecture::Tick(float DeltaTime)
 
 }
 
+
+AInfoPane :: AInfoPane()
+{
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void AInfoPane::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void AInfoPane::Tick(float dt)
+{
+	Super::Tick(dt);
+}
+
+
 // Sets default values
 ATutorialLecture::ATutorialLecture()
 {

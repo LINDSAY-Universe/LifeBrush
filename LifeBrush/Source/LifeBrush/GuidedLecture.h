@@ -112,6 +112,21 @@ public:
 };
 
 UCLASS()
+class LIFEBRUSH_API AInfoPane : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AInfoPane();
+
+protected:
+	virtual void BeginPlay() override;
+
+public:
+	virtual void Tick(float DeltaTime) override;
+};
+
+UCLASS()
 class LIFEBRUSH_API ATutorialLecture : public AActor
 {
 	GENERATED_BODY()
@@ -155,8 +170,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		AActor* Synthase_Snap;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-		AActor* Simulation_Actor;
 
 	TArray<AActor*> snapshots;
 

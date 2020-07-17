@@ -293,48 +293,6 @@ public:
 };
 
 
-UCLASS(BlueprintType)
-class LIFEBRUSH_API UExampleSimulation : public UObjectSimulation, public IFlexGraphSimulation
-{
-	GENERATED_BODY()
-
-public:
-	//override methods inherited from IFlexGraphSimulation
-	void preTick(float deltaT) override;
-
-	void flexTick(
-		float deltaT,
-		NvFlexVector<int>& neighbourIndices,
-		NvFlexVector<int>& neighbourCounts,
-		NvFlexVector<int>& apiToInternal,
-		NvFlexVector<int>& internalToAPI,
-		int maxParticles
-	) override;
-
-	
-	void postTick(float deltaT) override;
-
-
-	//override methods inherited from UObjectSimulation
-	virtual void begin() override;
-
-	virtual void tick(float deltaT) override;
-
-	virtual void tick_paused(float deltaT) override;
-
-	virtual void didPause() override;
-
-	virtual void didResume() override;
-
-	virtual void snapshotToActor(AActor * actor) override;
-
-protected:
-	//inherited from UObjectSimulation
-	virtual void attach() override;
-
-	virtual void detach() override;
-
-};
 
 UCLASS( BlueprintType )
 class LIFEBRUSH_API UATPSynthaseSimulation : public UObjectSimulation, public IFlexGraphSimulation
