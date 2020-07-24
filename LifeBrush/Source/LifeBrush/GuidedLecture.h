@@ -29,6 +29,16 @@ enum class EUIEmphasis : uint8
 };
 
 UENUM(BlueprintType)
+enum class EControllerState : uint8
+{
+	ESurfaceAdd,
+	ESurfaceRem,
+	EVolumeAdd,
+	EVolumeRem,
+	ENone,
+};
+
+UENUM(BlueprintType)
 enum class ECanvasExample : uint8
 {
 	EADP,
