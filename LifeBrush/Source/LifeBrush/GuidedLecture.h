@@ -26,6 +26,11 @@ enum class EUIEmphasis : uint8
 	EPalette,
 	ENametags,
 	EMitoMatrix,
+	EMitoSurface,
+	EInnerMemb,
+	EJunction,
+	EOuterMemb,
+	EAll
 };
 
 UENUM(BlueprintType)
@@ -50,6 +55,14 @@ enum class ECanvasExample : uint8
 	EMatrix,
 	ESynthase,
 	EAll,
+};
+
+UENUM(BlueprintType)
+enum class ETextEmphasis : uint8
+{
+	EPlaySim,
+	EVizPaths,
+	ENone,
 };
 
 USTRUCT(BlueprintType)
@@ -153,11 +166,15 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	AActor* exemplar;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AActor* completedCanvas;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	APawn* SketchyPawn;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* simulationActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		AActor* completedCanvas;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	AActor* ADP_Snap;
@@ -179,8 +196,10 @@ protected:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		AActor* Synthase_Snap;
-	
 
+	UPROPERTY(BlueprintReadOnly)
+	TMap<FString, EUIEmphasis> UIMap;
+	
 	TArray<AActor*> snapshots;
 
 public:
@@ -189,6 +208,8 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void SetVisibilityOfAllSnapshots(bool b);
+
+	
 };
 
 UCLASS()

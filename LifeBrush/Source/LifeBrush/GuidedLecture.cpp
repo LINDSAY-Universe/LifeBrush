@@ -123,6 +123,17 @@ void ATutorialLecture::BeginPlay()
 	snapshots.Add(Matrix_Snap);
 	snapshots.Add(Synthase_Snap);
 
+	//Maps each molecule to where in the canvas it should go
+	//we will make a function which checks for the substring and returns the proper UI element to emphasize
+	UIMap.Add(TEXT("adp"), EUIEmphasis::EMitoMatrix);
+	UIMap.Add(TEXT("hydrogen"), EUIEmphasis::EInnerMemb);
+	UIMap.Add(TEXT("ims"), EUIEmphasis::EOuterMemb);
+	UIMap.Add(TEXT("inner_membrane"), EUIEmphasis::EMitoSurface);
+	UIMap.Add(TEXT("junction"), EUIEmphasis::EJunction);
+	UIMap.Add(TEXT("lipid"), EUIEmphasis::EMitoSurface);
+	UIMap.Add(TEXT("matrix"), EUIEmphasis::EMitoMatrix);
+	UIMap.Add(TEXT("membrane"), EUIEmphasis::EMitoSurface);
+
 	Super::BeginPlay();
 
 }
