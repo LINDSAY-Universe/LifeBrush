@@ -26,13 +26,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText name;
 
-	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (MultiLine = true))
 	FText Description;
 
+	//Whether the display image should be made from the texture field or the material field below (if true then InfoPane will use Material)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool useMaterialAsImage;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UTexture2D* displayImage;
-	
+	UTexture2D* displayImageTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		UMaterial* displayImageMaterial;
+
 };
 
 UENUM(Blueprintable)
