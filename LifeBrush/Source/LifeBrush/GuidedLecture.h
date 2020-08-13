@@ -98,6 +98,24 @@ public:
 
 };
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FSnapshotSlide
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		FString SlideTitle;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		AActor* snapshot;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UTexture* slideImage;
+
+};
+
 UCLASS()
 class LIFEBRUSH_API AGuidedLecture : public AActor
 {
@@ -145,7 +163,35 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Info Pane")
+		FString Title;
+
 public:
+	virtual void Tick(float DeltaTime) override;
+};
+
+UCLASS()
+class LIFEBRUSH_API ASnapshotSlideShowBase : public AActor
+{
+	GENERATED_BODY()
+public:
+	ASnapshotSlideShowBase();
+
+protected:
+	virtual void BeginPlay() override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snapshot Slideshow")
+		int32 currentSlideNum = 0;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snapshot Slideshow")
+		TArray<FSnapshotSlide> snapshotSlides;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snapshot Slideshow")
+		AStaticMeshActor* imageFrame;
+
+public:
+	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 };
 

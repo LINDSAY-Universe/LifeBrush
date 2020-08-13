@@ -171,3 +171,17 @@ void ATemplateLecture::BeginPlay()
 	Super::BeginPlay();
 }
 
+ASnapshotSlideShowBase::ASnapshotSlideShowBase()
+{
+	PrimaryActorTick.bCanEverTick = true;
+}
+
+void ASnapshotSlideShowBase::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void ASnapshotSlideShowBase::Tick(float dt)
+{
+	Super::Tick(dt);
+}
