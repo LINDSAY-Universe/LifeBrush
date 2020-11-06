@@ -104,15 +104,21 @@ struct LIFEBRUSH_API FSnapshotSlide
 	GENERATED_USTRUCT_BODY()
 
 public:
-
+	//Title of slide
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		FString SlideTitle;
 
+	//Corresponding snapshot
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		AActor* snapshot;
 
+	//Image that will display on picture frame
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 		UTexture* slideImage;
+
+	//Mesh that forms the template of the slide.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		UStaticMesh* simulationMesh;
 
 };
 

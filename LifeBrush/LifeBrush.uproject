@@ -115,6 +115,14 @@
 		{
 			"Name": "OculusVR",
 			"Enabled": false
+		},
+		{
+			"Name": "MixedRealityFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "LIV",
+			"Enabled": true
 		}
 	],
 	"TargetPlatforms": [
