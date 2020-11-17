@@ -471,6 +471,133 @@ public:
 	FTransform toWorld;
 };
 
+
+
+/////////////////////////COVID SIMULATION///////////////////////////////////////////////
+UENUM()
+enum COVID_Status
+{
+	EHealthy,
+	EInfected,
+	EDead,
+	EImmune,
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVID_spike : public FGraphObject {
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = "Spike Protein")
+		float bindingRadius;
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVID_ACE2 : public FGraphObject {
+	GENERATED_BODY()
+
+};
+
+UCLASS()
+class LIFEBRUSH_API UEvent_detachSpikeHead : public USEGraphEvent {
+	GENERATED_BODY()
+public:
+	virtual ~UEvent_detachSpikeHead() {};
+};
+
+//represents a single agent in the community transmission simulation
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVIDSim_Agent : public FGraphObject {
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "COVID Sim")
+		TEnumAsByte<COVID_Status> status;
+
+//number of other agents that this agent has infected
+	float _numberInfected = 0;
+	
+
+};
+
+UCLASS()
+class LIFEBRUSH_API UCOVIDSim : public UObjectSimulation, public IFlexGraphSimulation
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* healthy_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* infected_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* immune_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float interactionRadius;
+
+	//prescribes the time interval steps of the simulation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float simulationTimer;
+
+	//r naught value - 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float r_naught;
+
+	//current number of healthy agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+		int num_healthyAgents;
+
+	//current number of infected agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+		int num_infectedAgents;
+
+	//current number of immune agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+		int num_immuneAgents;
+
+	//current number of dead agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+		int num_deadAgents;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+		int	num_totalAgents;
+
+
+
+private:
+
+	float _simTimer;
+
+	//boolean is flipped when an agent transitions states
+	bool _isDirty;
+
+protected:
+	virtual void attach() override;
+
+	void _agentInteraction(FCOVIDSim_Agent* agent,FGraphNode* agent_node, FCOVIDSim_Agent* neighbour);
+	void _detachSpike(FCOVID_spike* spike);
+	//recalculates number of immune, infected etc. when change is made to model.
+	void _recalculateTotals();		
+
+public:
+	virtual void tick(float deltaT) override;
+	virtual void tick_paused(float deltaT) override;
+
+	virtual void flexTick(
+		float deltaT,
+		NvFlexVector<int>& neighbourIndices,
+		NvFlexVector<int>& neighbourCounts,
+		NvFlexVector<int>& apiToInternal,
+		NvFlexVector<int>& internalToAPI,
+		int maxParticles
+	)override;
+
+};
+
+
+
 //////////////////////////CENTRAL DOGMA SIMULATION//////////////////////////////////////
 
 

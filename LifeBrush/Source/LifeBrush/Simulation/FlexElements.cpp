@@ -1756,25 +1756,211 @@ void FFlexSimulation::edgeObjectRemoved(FGraphEdgeHandle handle, EdgeObjectType 
 
 
 
+void UCOVIDSim::attach() {
+	_simTimer = simulationTimer;
+}
 
+void UCOVIDSim::tick(float deltaT) {
 
+}
 
+void UCOVIDSim::tick_paused(float deltaT)
+{
 
+}
 
+void UCOVIDSim::flexTick(float deltaT,
+	NvFlexVector<int>& neighbourIndices,
+	NvFlexVector<int>& neighbourCounts,
+	NvFlexVector<int>& apiToInternal,
+	NvFlexVector<int>& internalToAPI,
+	int maxParticles)
+{
+	//spike proteins
+	auto& spikeProteins = graph->componentStorage<FCOVID_spike>();
 
+	//ace2 receptors
+	auto& aceReceptors = graph->componentStorage < FCOVID_ACE2> ();
 
+	//community transmission agents simulation
+	auto& communityAgents = graph->componentStorage<FCOVIDSim_Agent>();
 
+	//update totals if necessary
+	if (_isDirty)
+	{
+		_recalculateTotals();
+		_isDirty = false;
+	}
 
+	graph->beginTransaction();
+	
+	//iterate through community transmission agents
+	for (FCOVIDSim_Agent& agent : communityAgents) 
+	{
+		
+		if (!agent.isValid()) continue;
+		auto nodeIndex = agent.nodeIndex;	
 
+		//get node of agent
+		FGraphNode& agentNode = graph->node(nodeIndex);
 
+		if (!agentNode.hasComponent<FFlexParticleObject>()) continue;
 
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
 
+		for (int i = 0; i < neighbourCount; ++i) {
+			
+			int neighbourIndex = internalToAPI[neighbourIndices[i*maxParticles + nodeIndex_flexInternal]];
 
+			FGraphNodeHandle handle(neighbourIndex);
 
+			//if the neighbour has a FCOVIDSim_Agent component then...
+			if (FCOVIDSim_Agent* otherAgent = communityAgents.componentPtrForNode(handle))
+			{
+				//get graph node of other agent
+				FGraphNode& otherAgentNode = graph->node(handle);
 
+				//calculate direction then distance between agents
+				FVector direction = agentNode.position - otherAgentNode.position;
+				float distanceSqrd = direction.SizeSquared();
 
+				if (distanceSqrd < interactionRadius)
+					_agentInteraction(&agent,&agentNode, otherAgent);
+			
+			}
 
+		}
 
+		if (simulationTimer < 0.f) {
+			//handle spontaneous transitions
+		}
+
+	}
+
+	for (FCOVID_spike& spike : spikeProteins)
+	{
+		if (!spike.isValid()) continue;
+		auto nodeIndex = spike.nodeIndex;
+
+		FGraphNode& spikeNode = graph->node(nodeIndex);
+
+		if (!spikeNode.hasComponent<FFlexParticleObject>()) continue;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		for (int i = 0; i < neighbourCount; ++i) {
+			int neighbourIndex = internalToAPI[neighbourIndices[i*maxParticles + nodeIndex_flexInternal]];
+
+			FGraphNodeHandle handle(neighbourIndex);
+
+			//if neighbour is an ace2 receptor
+			if (FCOVID_ACE2* receptor = aceReceptors.componentPtrForNode(handle)) {
+
+				FGraphNode& receptorNode = graph->node(handle);
+
+				FVector direction = spikeNode.position - receptorNode.position;
+				float distanceSqrd = direction.SizeSquared();
+
+				if (distanceSqrd < spike.bindingRadius)
+					_detachSpike(&spike);
+			}
+		}
+	}
+
+	if (simulationTimer < 0.f)
+		simulationTimer = _simTimer;	
+	else
+		simulationTimer -= deltaT;
+
+	
+	graph->endTransaction();
+}
+
+//TODO
+void UCOVIDSim::_detachSpike(FCOVID_spike* spike)
+{
+
+}
+
+void UCOVIDSim::_recalculateTotals()
+{
+	auto& agents = graph->componentStorage<FCOVIDSim_Agent>();
+
+	int _healthy = 0;
+	int _infected = 0;
+	int _immune = 0;
+	int _dead = 0;
+
+	for (auto& agent : agents)
+	{
+		switch (agent.status)
+		{
+
+		case COVID_Status::EHealthy:
+			_healthy++;
+			break;
+
+		case COVID_Status::EDead:
+			_dead++;
+			break;
+
+		case COVID_Status::EImmune:
+			_immune++;
+			break;
+
+		case COVID_Status::EInfected:
+			_infected++;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	num_healthyAgents = _healthy;
+	num_infectedAgents = _infected;
+	num_immuneAgents = _immune;
+	num_deadAgents = _dead;
+	num_totalAgents = _healthy + _infected + _immune;
+
+}
+
+//TODO
+void UCOVIDSim::_agentInteraction(FCOVIDSim_Agent* agent, FGraphNode* agent_node, FCOVIDSim_Agent* neighbour)
+{
+	if (agent->status == COVID_Status::EHealthy) {
+
+		if(neighbour->status == COVID_Status::EInfected)
+		{
+			//calculate probabiltiy of infected agent infecting the healthy agent
+			//prob is calculated by taking the ratio of infected individual's infect count, divide by r0, then subtract from 100 
+			//plus random number between 0 and 0.5
+			float _prob = 1 - ((neighbour->_numberInfected / r_naught) + FMath::RandRange(0.f, 0.5f));
+
+			//if infection is sucessful
+			if (FMath::RandRange(0.f, 1.0f) <= _prob)
+			{
+				_isDirty = true;
+
+				neighbour->_numberInfected++;
+
+				agent->status = COVID_Status::EInfected;
+
+				//TODO CHANGE COLOUR
+
+			}
+
+			
+		}
+
+		
+
+	}
+
+	
+}
 
 
 
