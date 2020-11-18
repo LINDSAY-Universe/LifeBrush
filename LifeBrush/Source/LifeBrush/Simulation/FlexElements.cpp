@@ -1785,6 +1785,8 @@ void UCOVIDSim::flexTick(float deltaT,
 	//community transmission agents simulation
 	auto& communityAgents = graph->componentStorage<FCOVIDSim_Agent>();
 
+	
+
 	//update totals if necessary
 	if (_isDirty)
 	{
@@ -1886,6 +1888,8 @@ void UCOVIDSim::_detachSpike(FCOVID_spike* spike)
 
 void UCOVIDSim::_recalculateTotals()
 {
+
+	UE_LOG(LogTemp,Warning,TEXT("RecalculateTotals()"))
 	auto& agents = graph->componentStorage<FCOVIDSim_Agent>();
 
 	int _healthy = 0;
@@ -1930,30 +1934,26 @@ void UCOVIDSim::_recalculateTotals()
 //TODO
 void UCOVIDSim::_agentInteraction(FCOVIDSim_Agent* agent, FGraphNode* agent_node, FCOVIDSim_Agent* neighbour)
 {
-	if (agent->status == COVID_Status::EHealthy) {
+	if (agent->status == COVID_Status::EHealthy && neighbour->status == COVID_Status::EInfected) {
 
-		if(neighbour->status == COVID_Status::EInfected)
+
+		//calculate probabiltiy of infected agent infecting the healthy agent
+		//prob is calculated by taking the ratio of infected individual's infect count, divide by r0, then subtract from 100 
+		//plus random number between 0 and 0.5
+		float _prob = 1 - ((neighbour->_numberInfected / r_naught) + FMath::RandRange(0.f, 0.5f));
+
+		//if infection is sucessful
+		if (FMath::RandRange(0.f, 1.0f) <= _prob)
 		{
-			//calculate probabiltiy of infected agent infecting the healthy agent
-			//prob is calculated by taking the ratio of infected individual's infect count, divide by r0, then subtract from 100 
-			//plus random number between 0 and 0.5
-			float _prob = 1 - ((neighbour->_numberInfected / r_naught) + FMath::RandRange(0.f, 0.5f));
+			_isDirty = true;
 
-			//if infection is sucessful
-			if (FMath::RandRange(0.f, 1.0f) <= _prob)
-			{
-				_isDirty = true;
+			agent->status = COVID_Status::EInfected;
+			agent_node->component<FGraphMesh>(*graph).material = infected_material;
 
-				neighbour->_numberInfected++;
-
-				agent->status = COVID_Status::EInfected;
-
-				//TODO CHANGE COLOUR
-
-			}
+		}
 
 			
-		}
+		
 
 		
 
