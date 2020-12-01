@@ -545,6 +545,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		float r_naught;
 
+	//percent chance of death after infection (decimal)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float death_prob;
+
+	//percent chance of immune after infection (decimal)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float immune_prob;
+
 	//current number of healthy agents
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
 		int num_healthyAgents;
@@ -570,6 +578,7 @@ private:
 
 	float _simTimer;
 
+	
 	//boolean is flipped when an agent transitions states
 	bool _isDirty;
 
@@ -578,8 +587,7 @@ protected:
 
 	void _agentInteraction(FCOVIDSim_Agent* agent,FGraphNode* agent_node, FCOVIDSim_Agent* neighbour);
 	void _detachSpike(FCOVID_spike* spike);
-	//recalculates number of immune, infected etc. when change is made to model.
-	void _recalculateTotals();		
+
 
 public:
 	virtual void tick(float deltaT) override;
@@ -594,6 +602,11 @@ public:
 		int maxParticles
 	)override;
 
+	UFUNCTION(BlueprintCallable)
+	bool getIsDirty();
+
+	UFUNCTION(BlueprintCallable)
+	void recalculateTotals();
 };
 
 

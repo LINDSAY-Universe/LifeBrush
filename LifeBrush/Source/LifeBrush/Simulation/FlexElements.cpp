@@ -1788,12 +1788,14 @@ void UCOVIDSim::flexTick(float deltaT,
 	
 
 	//update totals if necessary
+	//we do this in the BP to make sure it is in sync
+	/*
 	if (_isDirty)
 	{
 		_recalculateTotals();
 		_isDirty = false;
 	}
-
+	*/
 	graph->beginTransaction();
 	
 	//iterate through community transmission agents
@@ -1836,6 +1838,42 @@ void UCOVIDSim::flexTick(float deltaT,
 
 		if (simulationTimer < 0.f) {
 			//handle spontaneous transitions
+			if (agent.status == COVID_Status::EInfected) 
+			{
+
+				float randf = FMath::RandRange(0.f, 1.0f);
+
+				//check if agent dies
+				if (randf <= death_prob) 
+				{
+					//DIE :(
+					agentNode.removeComponents(*graph);
+					agentNode.invalidate();
+					
+				}
+				//if agent recovers then we check if it becomes immune
+				else
+				{
+					randf = FMath::RandRange(0.f, 1.0f);
+					if (randf <= immune_prob)
+					{
+						//immune
+						agent.status = COVID_Status::EImmune;
+						agentNode.component<FGraphMesh>(*graph).material = immune_material;
+					}
+					else 
+					{
+						//recovered
+						agent.status = COVID_Status::EHealthy;
+						agentNode.component<FGraphMesh>(*graph).material = healthy_material;
+					}
+				}
+
+
+			}
+
+
+			_isDirty = true;
 		}
 
 	}
@@ -1886,7 +1924,9 @@ void UCOVIDSim::_detachSpike(FCOVID_spike* spike)
 
 }
 
-void UCOVIDSim::_recalculateTotals()
+bool UCOVIDSim::getIsDirty() { return _isDirty; }
+
+void UCOVIDSim::recalculateTotals()
 {
 
 	UE_LOG(LogTemp,Warning,TEXT("RecalculateTotals()"))
@@ -1950,12 +1990,10 @@ void UCOVIDSim::_agentInteraction(FCOVIDSim_Agent* agent, FGraphNode* agent_node
 			agent->status = COVID_Status::EInfected;
 			agent_node->component<FGraphMesh>(*graph).material = infected_material;
 
+			neighbour->_numberInfected++;
+
 		}
 
-			
-		
-
-		
 
 	}
 
