@@ -554,22 +554,22 @@ public:
 		float immune_prob;
 
 	//current number of healthy agents
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		int num_healthyAgents;
 
 	//current number of infected agents
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		int num_infectedAgents;
 
 	//current number of immune agents
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		int num_immuneAgents;
 
 	//current number of dead agents
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		int num_deadAgents;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "COVID Sim")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
 		int	num_totalAgents;
 
 
@@ -604,6 +604,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool getIsDirty();
+
+	UFUNCTION(BlueprintCallable)
+	void resetValues();
 
 	UFUNCTION(BlueprintCallable)
 	void recalculateTotals();

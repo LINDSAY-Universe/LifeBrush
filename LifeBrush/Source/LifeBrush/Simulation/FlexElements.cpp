@@ -1841,7 +1841,7 @@ void UCOVIDSim::flexTick(float deltaT,
 			if (agent.status == COVID_Status::EInfected) 
 			{
 
-				float randf = FMath::RandRange(0.f, 1.0f);
+				float randf = FMath::RandRange(0.f, 100.0f);
 
 				//check if agent dies
 				if (randf <= death_prob) 
@@ -1849,12 +1849,13 @@ void UCOVIDSim::flexTick(float deltaT,
 					//DIE :(
 					agentNode.removeComponents(*graph);
 					agentNode.invalidate();
+					num_deadAgents++;
 					
 				}
 				//if agent recovers then we check if it becomes immune
 				else
 				{
-					randf = FMath::RandRange(0.f, 1.0f);
+					randf = FMath::RandRange(0.f, 100.0f);
 					if (randf <= immune_prob)
 					{
 						//immune
@@ -1924,18 +1925,26 @@ void UCOVIDSim::_detachSpike(FCOVID_spike* spike)
 
 }
 
+void UCOVIDSim::resetValues() {
+
+	num_healthyAgents = 0;
+	num_infectedAgents = 0;
+	num_immuneAgents = 0;
+	num_deadAgents = 0;
+}
+
 bool UCOVIDSim::getIsDirty() { return _isDirty; }
 
 void UCOVIDSim::recalculateTotals()
 {
 
-	UE_LOG(LogTemp,Warning,TEXT("RecalculateTotals()"))
+	
 	auto& agents = graph->componentStorage<FCOVIDSim_Agent>();
 
 	int _healthy = 0;
 	int _infected = 0;
 	int _immune = 0;
-	int _dead = 0;
+	
 
 	for (auto& agent : agents)
 	{
@@ -1944,10 +1953,6 @@ void UCOVIDSim::recalculateTotals()
 
 		case COVID_Status::EHealthy:
 			_healthy++;
-			break;
-
-		case COVID_Status::EDead:
-			_dead++;
 			break;
 
 		case COVID_Status::EImmune:
@@ -1966,7 +1971,6 @@ void UCOVIDSim::recalculateTotals()
 	num_healthyAgents = _healthy;
 	num_infectedAgents = _infected;
 	num_immuneAgents = _immune;
-	num_deadAgents = _dead;
 	num_totalAgents = _healthy + _infected + _immune;
 
 }
