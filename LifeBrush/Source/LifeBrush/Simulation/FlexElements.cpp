@@ -1756,25 +1756,253 @@ void FFlexSimulation::edgeObjectRemoved(FGraphEdgeHandle handle, EdgeObjectType 
 
 
 
+void UCOVIDSim::attach() {
+	_simTimer = simulationTimer;
+}
+
+void UCOVIDSim::tick(float deltaT) {
+
+}
+
+void UCOVIDSim::tick_paused(float deltaT)
+{
+
+}
+
+void UCOVIDSim::flexTick(float deltaT,
+	NvFlexVector<int>& neighbourIndices,
+	NvFlexVector<int>& neighbourCounts,
+	NvFlexVector<int>& apiToInternal,
+	NvFlexVector<int>& internalToAPI,
+	int maxParticles)
+{
+	//spike proteins
+	auto& spikeProteins = graph->componentStorage<FCOVID_spike>();
+
+	//ace2 receptors
+	auto& aceReceptors = graph->componentStorage < FCOVID_ACE2> ();
+
+	//community transmission agents simulation
+	auto& communityAgents = graph->componentStorage<FCOVIDSim_Agent>();
+
+	
+
+	//update totals if necessary
+	//we do this in the BP to make sure it is in sync
+	/*
+	if (_isDirty)
+	{
+		_recalculateTotals();
+		_isDirty = false;
+	}
+	*/
+	graph->beginTransaction();
+	
+	//iterate through community transmission agents
+	for (FCOVIDSim_Agent& agent : communityAgents) 
+	{
+		
+		if (!agent.isValid()) continue;
+		auto nodeIndex = agent.nodeIndex;	
+
+		//get node of agent
+		FGraphNode& agentNode = graph->node(nodeIndex);
+
+		if (!agentNode.hasComponent<FFlexParticleObject>()) continue;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		for (int i = 0; i < neighbourCount; ++i) {
+			
+			int neighbourIndex = internalToAPI[neighbourIndices[i*maxParticles + nodeIndex_flexInternal]];
+
+			FGraphNodeHandle handle(neighbourIndex);
+
+			//if the neighbour has a FCOVIDSim_Agent component then...
+			if (FCOVIDSim_Agent* otherAgent = communityAgents.componentPtrForNode(handle))
+			{
+				//get graph node of other agent
+				FGraphNode& otherAgentNode = graph->node(handle);
+
+				//calculate direction then distance between agents
+				FVector direction = agentNode.position - otherAgentNode.position;
+				float distanceSqrd = direction.SizeSquared();
+
+				if (distanceSqrd < interactionRadius)
+					_agentInteraction(&agent,&agentNode, otherAgent);
+			
+			}
+
+		}
+
+		if (simulationTimer < 0.f) {
+			//handle spontaneous transitions
+			if (agent.status == COVID_Status::EInfected) 
+			{
+
+				float randf = FMath::RandRange(0.f, 100.0f);
+
+				//check if agent dies
+				if (randf <= death_prob) 
+				{
+					//DIE :(
+					agentNode.removeComponents(*graph);
+					agentNode.invalidate();
+					num_deadAgents++;
+					
+				}
+				//if agent recovers then we check if it becomes immune
+				else
+				{
+					randf = FMath::RandRange(0.f, 100.0f);
+					if (randf <= immune_prob)
+					{
+						//immune
+						agent.status = COVID_Status::EImmune;
+						agentNode.component<FGraphMesh>(*graph).material = immune_material;
+					}
+					else 
+					{
+						//recovered
+						agent.status = COVID_Status::EHealthy;
+						agentNode.component<FGraphMesh>(*graph).material = healthy_material;
+					}
+				}
 
 
+			}
 
 
+			_isDirty = true;
+		}
+
+	}
+
+	for (FCOVID_spike& spike : spikeProteins)
+	{
+		if (!spike.isValid()) continue;
+		auto nodeIndex = spike.nodeIndex;
+
+		FGraphNode& spikeNode = graph->node(nodeIndex);
+
+		if (!spikeNode.hasComponent<FFlexParticleObject>()) continue;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		for (int i = 0; i < neighbourCount; ++i) {
+			int neighbourIndex = internalToAPI[neighbourIndices[i*maxParticles + nodeIndex_flexInternal]];
+
+			FGraphNodeHandle handle(neighbourIndex);
+
+			//if neighbour is an ace2 receptor
+			if (FCOVID_ACE2* receptor = aceReceptors.componentPtrForNode(handle)) {
+
+				FGraphNode& receptorNode = graph->node(handle);
+
+				FVector direction = spikeNode.position - receptorNode.position;
+				float distanceSqrd = direction.SizeSquared();
+
+				if (distanceSqrd < spike.bindingRadius)
+					_detachSpike(&spike);
+			}
+		}
+	}
+
+	if (simulationTimer < 0.f)
+		simulationTimer = _simTimer;	
+	else
+		simulationTimer -= deltaT;
+
+	
+	graph->endTransaction();
+}
+
+//TODO
+void UCOVIDSim::_detachSpike(FCOVID_spike* spike)
+{
+
+}
+
+void UCOVIDSim::resetValues() {
+
+	num_healthyAgents = 0;
+	num_infectedAgents = 0;
+	num_immuneAgents = 0;
+	num_deadAgents = 0;
+}
+
+bool UCOVIDSim::getIsDirty() { return _isDirty; }
+
+void UCOVIDSim::recalculateTotals()
+{
+
+	
+	auto& agents = graph->componentStorage<FCOVIDSim_Agent>();
+
+	int _healthy = 0;
+	int _infected = 0;
+	int _immune = 0;
+	
+
+	for (auto& agent : agents)
+	{
+		switch (agent.status)
+		{
+
+		case COVID_Status::EHealthy:
+			_healthy++;
+			break;
+
+		case COVID_Status::EImmune:
+			_immune++;
+			break;
+
+		case COVID_Status::EInfected:
+			_infected++;
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	num_healthyAgents = _healthy;
+	num_infectedAgents = _infected;
+	num_immuneAgents = _immune;
+	num_totalAgents = _healthy + _infected + _immune;
+
+}
+
+//TODO
+void UCOVIDSim::_agentInteraction(FCOVIDSim_Agent* agent, FGraphNode* agent_node, FCOVIDSim_Agent* neighbour)
+{
+	if (agent->status == COVID_Status::EHealthy && neighbour->status == COVID_Status::EInfected) {
 
 
+		//calculate probabiltiy of infected agent infecting the healthy agent
+		//prob is calculated by taking the ratio of infected individual's infect count, divide by r0, then subtract from 100 
+		//plus random number between 0 and 0.5
+		float _prob = 1 - ((neighbour->_numberInfected / r_naught) + FMath::RandRange(0.f, 0.5f));
+
+		//if infection is sucessful
+		if (FMath::RandRange(0.f, 1.0f) <= _prob)
+		{
+			_isDirty = true;
+
+			agent->status = COVID_Status::EInfected;
+			agent_node->component<FGraphMesh>(*graph).material = infected_material;
+
+			neighbour->_numberInfected++;
+
+		}
 
 
+	}
 
-
-
-
-
-
-
-
-
-
-
+	
+}
 
 
 
@@ -1915,7 +2143,38 @@ void URandomWalkSimulation::tick( float deltaT )
 }
 
 
+int UATPSynthaseSimulation::getNumberOfParticles(ECanvasExample ex)
+{
+	int num = -1;
+	auto& ADPs = graph->componentStorage<FADPGraphObject>();
+	auto& hydrogens = graph->componentStorage<FHydrogenGraphObject>();
 
+	switch (ex)
+	{
+	case ECanvasExample::EADP:
+		num = ADPs._size;
+	case ECanvasExample::EHydrogen:
+		num = hydrogens._size;
+	case ECanvasExample::EIMS:
+		break;
+	case ECanvasExample::EInMembrane:
+		break;
+	case ECanvasExample::ELipids:
+		break;
+	case ECanvasExample::EJunction:
+		break;
+	case ECanvasExample::EMatrix:
+		break;
+	case ECanvasExample::ESynthase:
+		break;
+	case ECanvasExample::EAll:
+		break;
+	default:
+		break;
+	}
+
+	return num;
+}
 
 void UATPSynthaseSimulation::attach()
 {
@@ -1942,6 +2201,7 @@ void UATPSynthaseSimulation::flexTick(
 
 	const int stride = maxParticles;
 
+
 	// If we have hydrogen below us, spin and teleport it across the membrane
 	// If we are spinning and have ADP above us, destroy it and produce ADP
 
@@ -1967,6 +2227,7 @@ void UATPSynthaseSimulation::flexTick(
 
 		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
 		int neighborCount = neighbourCounts[nodeIndex_flexInternal];
+
 
 		// use hydrogen to spin
 		if(synthase.timerH < 0.0f)
@@ -2758,4 +3019,524 @@ void UStaticPositionSimulation::_tickStatic(float deltaT)
 			}
 		}
 	}
+
+
 }
+
+void UCentralDogmaSimulation::attach() {
+
+}
+
+void UCentralDogmaSimulation::tick(float deltaT) {
+
+}
+
+void UCentralDogmaSimulation::tick_paused(float deltaT) {
+
+}
+
+void UCentralDogmaSimulation::flexTick(float deltaT,
+	NvFlexVector<int>& neighbourIndices,
+	NvFlexVector<int>& neighbourCounts,
+	NvFlexVector<int>& apiToInternal,
+	NvFlexVector<int>& internalToAPI,
+	int maxParticles)
+{
+
+	
+	auto& DNAObjects = graph->componentStorage<FCentralDog_DNA_GraphObject>();
+	auto& RNAObjects = graph->componentStorage<FCentralDog_RNA_GraphObject>();
+	auto& GTFs = graph->componentStorage<FCentralDog_TranscriptFactors_GraphObject>();
+	auto& polymerases = graph->componentStorage<FCentralDog_Polymerase_GraphObject>();
+	auto& ribosomes = graph->componentStorage<FCentralDog_Ribosome_GraphObject>();
+
+
+	const int stride = maxParticles;
+
+	float interactionRadiusSqrd = 9999 * 9999;
+	float bindingRadiusSqrd = 2 * 2;
+
+	graph->beginTransaction();
+
+
+	UTimelineSimulation* timeline = simulationManager->simulation<UTimelineSimulation>();
+
+
+	//first loop is to find the DNA unbound to GTF 
+	for (FCentralDog_DNA_GraphObject& dna : DNAObjects)
+	{
+
+		if (!dna.isValid())continue;
+		auto nodeIndex = dna.nodeIndex;
+
+
+		FGraphNode& dnaNode = graph->node(nodeIndex);
+
+
+		if (!dnaNode.hasComponent<FFlexParticleObject>())
+			continue;
+
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		float nearestSqrdDistance = std::numeric_limits<float>::max();
+
+		FGraphNodeHandle nearestGTF;
+		FGraphNodeHandle nearestPol;
+
+
+		//if the dna is not bound by GTF we need to find the nearest gtf neighbour
+		if (!dna.isGTFBound() &&  !dna.hasBeenTranscribed()) 
+		{
+			for (int i = 0; i < neighbourCount; ++i)
+			{
+				//search neighbours for closest GTF
+				int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+				FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+				
+
+				if (GTFs.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
+				
+
+				FCentralDog_TranscriptFactors_GraphObject& GTFgraphObj = neighbourNode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
+
+				FVector direction = dnaNode.position - neighbourNode.position;
+
+				float distSqrd = direction.SizeSquared();
+
+				if (distSqrd > interactionRadiusSqrd)
+					continue;
+
+				if (distSqrd < nearestSqrdDistance)
+				{
+
+					nearestSqrdDistance = distSqrd;
+					nearestGTF = FGraphNodeHandle(neighbourNode);
+				}
+
+
+				break;
+			}
+
+			//First we check if the GTF is within the interaction radius. If it is then we will move
+			//the GTF closer to the DNA strand. 
+			//Then we see if the GTF is within binding proximity.
+
+			if (nearestGTF && !nearestGTF.node(*graph).component<FCentralDog_TranscriptFactors_GraphObject>(graph).isDNABound())
+			{
+
+				FGraphNode& GTFnode = nearestGTF(graph);
+
+				
+				if (!GTFnode.hasComponent<FVelocityGraphObject>())
+					GTFnode.addComponent<FVelocityGraphObject>(*graph);
+
+				FVector directToDNA = (dnaNode.position - GTFnode.position);	//FVEctor is an offset vector so the GTF binds the mesh :/
+
+																				//start moving the GTF closer to the DNA
+				FVelocityGraphObject& gtfVel = GTFnode.component<FVelocityGraphObject>(*graph);
+				gtfVel.linearVelocity = directToDNA;
+
+				
+				float distSqrd = directToDNA.SizeSquared();
+				
+				if (distSqrd > bindingRadiusSqrd)
+					continue;
+
+				//if GTF is close enough to bind DNA, initiate binding and create an RNA node
+
+				if (distSqrd < bindingRadiusSqrd)
+				{
+
+					bindGTFtoDNA(dna, GTFnode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph));
+				}
+
+
+			}
+
+
+		}
+
+		//if dna is already bound by GTF now we look for rna Pol
+		if (dna.isGTFBound())
+		{
+			for (int i = 0; i < neighbourCount; ++i)
+			{
+				int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+				FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+				//UE_LOG(LogTemp, Warning, TEXT("Pre continue"));
+				if (polymerases.componentPtrForNode(neighbourNode.handle()) == nullptr) continue;
+				FCentralDog_Polymerase_GraphObject& rnaPolGraphObj = neighbourNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
+				//UE_LOG(LogTemp, Warning, TEXT("Post continue"));
+
+				FVector direction = dnaNode.position - neighbourNode.position;
+				float distSqrd = direction.SizeSquared();
+
+				if (distSqrd > interactionRadiusSqrd)
+					continue;
+				if (distSqrd < nearestSqrdDistance)
+				{
+					nearestSqrdDistance = distSqrd;
+					nearestPol = FGraphNodeHandle(neighbourNode);
+				}
+
+				break;
+
+			}
+
+			if (nearestPol && !nearestPol.node(*graph).component<FCentralDog_Polymerase_GraphObject>(graph).isDNABound())
+			{
+				FGraphNode& polNode = nearestPol(graph);
+
+				if (!polNode.hasComponent<FVelocityGraphObject>())
+					polNode.addComponent<FVelocityGraphObject>(*graph);
+
+
+				FVector directToDNA = (dnaNode.position - polNode.position);
+
+				//start moving RNA Pol towards the GTF
+				FVelocityGraphObject& polVel = polNode.component<FVelocityGraphObject>(*graph);
+				polVel.linearVelocity = directToDNA;
+
+				float distSqrd = directToDNA.SizeSquared();
+
+				//UE_LOG(LogTemp, Warning, TEXT("Pol - distSqrd:%d bindingRadiusSqrd:%f  "), distSqrd, bindingRadiusSqrd);
+
+				//now we see if the RNA pol is within binding distance of the GTF
+				if (distSqrd > bindingRadiusSqrd)
+					continue;
+
+				if (distSqrd < bindingRadiusSqrd)
+				{
+					bindPolToDNA(dna, nearestPol.node(*graph).component<FCentralDog_Polymerase_GraphObject>(graph));
+
+				}
+
+			}
+
+
+		}
+
+
+		if (dna.isBeingTranscribed())
+		{
+
+			if (dna.transcriptionTimer < 0.f) {
+
+				_spawnRNA(dnaNode.position, dnaNode.orientation, 1);
+				unbindGTFfromDNA(dna);
+				unbindPolFromDNA(dna);
+
+			}
+
+			dna.transcriptionTimer -= deltaT;
+		}
+
+	}
+	
+	for (FCentralDog_RNA_GraphObject& rna : RNAObjects)
+	{
+		if (!rna.isValid())continue;
+		auto nodeIndex = rna.nodeIndex;
+
+		FGraphNode& rnaNode = graph->node(nodeIndex);
+
+		if (!rnaNode.hasComponent<FFlexParticleObject>())
+			continue;
+
+		int nodeIndex_flexInternal = apiToInternal[nodeIndex];
+		int neighbourCount = neighbourCounts[nodeIndex_flexInternal];
+
+		float nearestSqrdDistance = std::numeric_limits<float>::max();
+
+		FGraphNodeHandle nearestRibosome;
+
+		for (int i = 0; i < neighbourCount; ++i)
+		{
+			int neighbourIndex = internalToAPI[neighbourIndices[i*stride + nodeIndex_flexInternal]];
+
+			FGraphNode& neighbourNode = graph->node(neighbourIndex);
+
+			if (ribosomes.componentPtrForNode(neighbourNode.handle()) == nullptr)continue;
+
+			FCentralDog_Ribosome_GraphObject& riboGraphObj = neighbourNode.component<FCentralDog_Ribosome_GraphObject>(*graph);
+			
+			FVector directToRNA = rnaNode.position - neighbourNode.position;
+			float distSqrd = directToRNA.SizeSquared();
+
+			if (distSqrd > interactionRadiusSqrd)
+				continue;
+
+			if (distSqrd < nearestSqrdDistance)
+			{
+				nearestSqrdDistance = distSqrd;
+				nearestRibosome = FGraphNodeHandle(neighbourNode);
+			}
+			break;
+		}
+
+		if (nearestRibosome && !rna.isRiboBound())
+		{
+			FGraphNode& riboNode = nearestRibosome(graph);
+
+			if (!riboNode.hasComponent<FVelocityGraphObject>())
+				riboNode.addComponent<FVelocityGraphObject>(*graph);
+
+			FVector directToRNA = (rnaNode.position - riboNode.position);
+
+			FVelocityGraphObject& riboVel = riboNode.component<FVelocityGraphObject>(*graph);
+			riboVel.linearVelocity = directToRNA;
+
+			float distSqrd = directToRNA.SizeSquared();
+
+			if (distSqrd > bindingRadiusSqrd)
+				continue;
+
+			if (distSqrd < bindingRadiusSqrd)
+			{
+				bindRiboToRNA(rna, riboNode.component<FCentralDog_Ribosome_GraphObject>(*graph));
+			}
+
+
+		}
+
+		if (rna.isRiboBound())
+		{
+			UE_LOG(LogTemp,Warning,TEXT("rna %d translation timer: %f"),rna.nodeIndex,rna.translationTimer)
+			if (rna.translationTimer < 0.f)
+			{
+				_spawnProtein(rnaNode.position, rnaNode.orientation, 1);
+				unbindRiboFromRNA(rna);
+			}
+		}
+
+	}
+	
+
+	
+
+	graph->endTransaction();
+	
+}
+
+
+void UCentralDogmaSimulation::unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Unbind Pol:%d from DNA:%d"), dna.boundPolIndex, dna.nodeIndex);
+
+	FGraphNode& polNode = graph->node(dna.boundPolIndex);
+	polNode.removeComponent<FStabalizedPosition>(*graph);
+
+	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
+
+	FCentralDog_Polymerase_GraphObject& polGraphObj = polNode.component<FCentralDog_Polymerase_GraphObject>(*graph);
+	polGraphObj.setDNABound(false);
+
+	//restore original random walk values
+	FRandomWalkGraphObject& dnaRand = dnaNode.component<FRandomWalkGraphObject>(*graph);
+	dnaRand.baseVelocity = dna.defaultRandWalk_BaseVel;
+	dnaRand.maxVelocityOffset = dna.defaultRandWalk_MaxOff;
+	
+
+	dna.setPolBound(false);
+	dna.setHasBeenTranscribed(true);
+}
+
+void UCentralDogmaSimulation::unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Unbind GTF:%d from DNA:%d"), dna.boundGTFIndex, dna.nodeIndex);
+
+	FGraphNode& gtfNode = graph->node(dna.boundGTFIndex);
+	gtfNode.removeComponent<FStabalizedPosition>(*graph);
+
+	FCentralDog_TranscriptFactors_GraphObject& gtfGraphObj = gtfNode.component<FCentralDog_TranscriptFactors_GraphObject>(*graph);
+	gtfGraphObj.setDNABound(false);
+
+	dna.setGTFBound(false);
+
+}
+
+void UCentralDogmaSimulation::unbindRiboFromRNA(FCentralDog_RNA_GraphObject& rna) {
+	UE_LOG(LogTemp, Warning, TEXT("Unbind Ribosome:#%d from RNA:#%d"), rna.boundRiboIndex, rna.nodeIndex);
+
+	FGraphNode& riboNode = graph->node(rna.boundRiboIndex);
+	riboNode.removeComponent<FStabalizedPosition>(*graph);
+	
+	FCentralDog_Ribosome_GraphObject& riboGraphObj = riboNode.component<FCentralDog_Ribosome_GraphObject>(*graph);
+	riboGraphObj.setRNABound(false);
+
+
+	FGraphNode& rnaNode = graph->node(rna.nodeIndex);
+	FRandomWalkGraphObject& rnaRand = rnaNode.component<FRandomWalkGraphObject>(*graph);
+	rnaRand.baseVelocity = rna.defaultRandWalk_BaseVel;
+	rnaRand.maxVelocityOffset = rna.defaultRandWalk_MaxOff;
+
+
+	rna.setIsRiboBound(false);
+	
+
+}
+
+void UCentralDogmaSimulation::bindRiboToRNA(FCentralDog_RNA_GraphObject& rna, FCentralDog_Ribosome_GraphObject& ribo)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Bind Ribo:#%d to RNA:#%d"), ribo.nodeIndex, rna.nodeIndex);
+
+	ribo.setRNABound(true);
+	
+	rna.boundRiboIndex = ribo.nodeIndex;
+	rna.setIsRiboBound(true);
+	rna.translationTimer = 5.f;
+	
+	FGraphNode& rnaNode = graph->node(rna.nodeIndex);
+	FGraphNode& riboNode = graph->node(ribo.nodeIndex);
+
+	rna.defaultRandWalk_MaxOff = rnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
+	rna.defaultRandWalk_BaseVel = rnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
+
+	rnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
+	rnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.1;
+
+	if (!rnaNode.hasComponent<FStabalizedPosition>())
+		riboNode.addComponent<FStabalizedPosition>(*graph);
+
+	riboNode.component<FStabalizedPosition>(*graph).position = rnaNode.position;
+	riboNode.component<FStabalizedPosition>(*graph).strength = 0.3;
+
+}
+
+void UCentralDogmaSimulation::bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol) {
+
+	UE_LOG(LogTemp, Warning, TEXT("Bind Pol#%d to DNA#%d"),rnaPol.nodeIndex,dna.nodeIndex);
+
+	rnaPol.setDNABound(true);
+
+	dna.transcriptionTimer = 5.f;
+	dna.setPolBound(true);
+	dna.boundPolIndex = rnaPol.nodeIndex;
+	
+	FGraphNode& rnaNode = graph->node(rnaPol.nodeIndex);
+	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
+	
+	
+	//get reference to DNA node so we can denote it as being RNAPol bound
+	//FGraphNode& dnaNode = graph->node(gtf.boundDNAnodeIndex);
+	//dnaNode.component<FCentralDog_DNA_GraphObject>(*graph).setPolBound(true);
+	
+	
+	//set an offset so it appears it is binding in the right position
+	FVector bindOffset(0.f, 0.f, 0.f);
+	if (!rnaNode.hasComponent<FStabalizedPosition>())
+		rnaNode.addComponent<FStabalizedPosition>(*graph);
+	rnaNode.component<FStabalizedPosition>(*graph).position = dnaNode.position + bindOffset;
+	rnaNode.component<FStabalizedPosition>(*graph).strength = 0.3;
+	
+}
+
+void UCentralDogmaSimulation::bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf) {
+
+	UE_LOG(LogTemp, Warning, TEXT("Bind GTF#%d to DNA#%d"),gtf.nodeIndex,dna.nodeIndex );
+
+	
+	FGraphNode& dnaNode = graph->node(dna.nodeIndex);
+	FGraphNode& gtfNode = graph->node(gtf.nodeIndex);
+
+	dna.boundGTFIndex = gtf.nodeIndex;
+
+	dna.setGTFBound(true);
+	gtf.setDNABound(true);
+	
+
+	//Store the initial random walk settings so we can restore them later, when the GTF unbinds
+	dna.defaultRandWalk_MaxOff = dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset;
+	dna.defaultRandWalk_BaseVel = dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity;
+
+
+	//make the DNA stop moving around so much	
+	dnaNode.component<FRandomWalkGraphObject>(*graph).baseVelocity = 0.1;
+	dnaNode.component<FRandomWalkGraphObject>(*graph).maxVelocityOffset = 0.1;
+
+	/*
+	if (!dnaNode.hasComponent<FStabalizedPosition>())
+		dnaNode.addComponent<FStabalizedPosition>(*graph);
+	dnaNode.component<FStabalizedPosition>(*graph).position = dnaNode.position;	
+	dnaNode.component<FStabalizedPosition>(*graph).strength = 0.3;
+	*/
+
+	//stabalize the GTFs position and add an offset to make it appear it is actually in contact with DNA
+	FVector bindOffset(0.f, 0.f, 0.f);
+	if (!gtfNode.hasComponent<FStabalizedPosition>()) 
+		gtfNode.addComponent<FStabalizedPosition>(*graph);
+	gtfNode.component<FStabalizedPosition>(*graph).position = dnaNode.position + bindOffset;
+	gtfNode.component<FStabalizedPosition>(*graph).strength = 0.3;
+	
+}
+
+FGraphNode& UCentralDogmaSimulation::_spawnProtein(FVector position, FQuat orientation, float scale)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Translated Protein Spawned"));
+
+	//create new node
+	FGraphNode& node = graph->node(graph->addNode(position, orientation, scale));
+
+	//Create components for that node
+	for (FTimStructBox& box : translatedProteinTemplate)
+	{
+		if (!box.IsValid())
+			continue;
+
+		ComponentType type = FGraphObject::componentType(box.scriptStruct);
+
+		FGraphObject* obj = node.addComponent(*graph, type);
+
+		box.scriptStruct->CopyScriptStruct(obj, box.structMemory);
+
+		obj->nodeIndex = node.id;
+
+	}
+
+	return node;
+}
+
+FGraphNode& UCentralDogmaSimulation::_spawnRNA(FVector position, FQuat orientation, float scale)
+{
+	UE_LOG(LogTemp, Warning, TEXT("Spawn RNA"));
+	FGraphNode& node = graph->node(graph->addNode(position, orientation, scale));
+	
+	//spawn components
+	for (FTimStructBox& box : rnaTemplate)
+	{
+
+		if (!box.IsValid())
+			continue;
+
+		//create graph object in simulation
+		ComponentType type = FGraphObject::componentType(box.scriptStruct);
+
+		FGraphObject* object = node.addComponent(*graph, type);
+
+		//copy memory from element
+		box.scriptStruct->CopyScriptStruct(object, box.structMemory);
+
+		object->nodeIndex = node.id;
+
+	}
+
+	/*
+	//send those badboys outside the nucleus
+	if (!node.hasComponent<FVelocityGraphObject>())
+		node.addComponent<FVelocityGraphObject>(*graph);
+
+	FVelocityGraphObject& rnaVel = node.component<FVelocityGraphObject>(*graph);
+	rnaVel.linearVelocity = node.component<FCentralDog_RNA_GraphObject>(*graph).outerMembranePoint - node.position;
+	*/
+	return node;
+	
+}
+
+
+

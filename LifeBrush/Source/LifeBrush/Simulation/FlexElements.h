@@ -15,7 +15,7 @@
 #include "ShipEditorSimulation/GraphSnapshot.h"
 #include "Visualization/Timeline.h"
 #include "Visualization/EdgeFactory.h"
-
+#include "GuidedLecture.h"
 
 #include "InstanceManager.h"
 #include "RegionGrowingComponent.h"
@@ -292,6 +292,8 @@ public:
 	virtual ~UEvent_SpinATPSynthase() {}
 };
 
+
+
 UCLASS( BlueprintType )
 class LIFEBRUSH_API UATPSynthaseSimulation : public UObjectSimulation, public IFlexGraphSimulation
 {
@@ -328,6 +330,9 @@ public:
 
 	FTransform toWorld;
 
+	UFUNCTION(BlueprintCallable, Category = "Tutorial")
+	int getNumberOfParticles(ECanvasExample ex);
+
 protected:
 	void _tickFollowPath(float deltaT);
 
@@ -337,6 +342,21 @@ protected:
 
 protected:
 	float _g;	// g = a_max * r_min^2 / m_h. However, we just assume m_h is 1. We just want to approximate a_max at a certain distance.
+};
+
+UCLASS()
+class LIFEBRUSH_API URandomWalkSimulation : public UObjectSimulation
+{
+	GENERATED_BODY()
+protected:
+	virtual void attach() override;
+
+public:
+	virtual void tick(float deltaT) override;
+
+	std::shared_ptr<tcodsMeshInterface> meshInterface;
+
+	FTransform toWorld;
 };
 
 
@@ -432,21 +452,6 @@ public:
 	FSurfaceIndex surfaceIndex;
 };
 
-UCLASS()
-class LIFEBRUSH_API URandomWalkSimulation : public UObjectSimulation
-{
-	GENERATED_BODY()
-protected:
-	virtual void attach();
-
-public:
-	virtual void tick( float deltaT ) override;
-
-	std::shared_ptr<tcodsMeshInterface> meshInterface;
-
-	FTransform toWorld;
-};
-
 
 
 UCLASS()
@@ -468,32 +473,325 @@ public:
 
 
 
+/////////////////////////COVID SIMULATION///////////////////////////////////////////////
+UENUM()
+enum COVID_Status
+{
+	EHealthy,
+	EInfected,
+	EDead,
+	EImmune,
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVID_spike : public FGraphObject {
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = "Spike Protein")
+		float bindingRadius;
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVID_ACE2 : public FGraphObject {
+	GENERATED_BODY()
+
+};
+
+UCLASS()
+class LIFEBRUSH_API UEvent_detachSpikeHead : public USEGraphEvent {
+	GENERATED_BODY()
+public:
+	virtual ~UEvent_detachSpikeHead() {};
+};
+
+//represents a single agent in the community transmission simulation
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCOVIDSim_Agent : public FGraphObject {
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "COVID Sim")
+		TEnumAsByte<COVID_Status> status;
+
+//number of other agents that this agent has infected
+	float _numberInfected = 0;
+	
+
+};
+
+UCLASS()
+class LIFEBRUSH_API UCOVIDSim : public UObjectSimulation, public IFlexGraphSimulation
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* healthy_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* infected_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		UMaterialInstance* immune_material;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float interactionRadius;
+
+	//prescribes the time interval steps of the simulation
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float simulationTimer;
+
+	//r naught value - 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float r_naught;
+
+	//percent chance of death after infection (decimal)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float death_prob;
+
+	//percent chance of immune after infection (decimal)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		float immune_prob;
+
+	//current number of healthy agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		int num_healthyAgents;
+
+	//current number of infected agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		int num_infectedAgents;
+
+	//current number of immune agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		int num_immuneAgents;
+
+	//current number of dead agents
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		int num_deadAgents;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "COVID Sim")
+		int	num_totalAgents;
 
 
 
+private:
+
+	float _simTimer;
+
+	
+	//boolean is flipped when an agent transitions states
+	bool _isDirty;
+
+protected:
+	virtual void attach() override;
+
+	void _agentInteraction(FCOVIDSim_Agent* agent,FGraphNode* agent_node, FCOVIDSim_Agent* neighbour);
+	void _detachSpike(FCOVID_spike* spike);
+
+
+public:
+	virtual void tick(float deltaT) override;
+	virtual void tick_paused(float deltaT) override;
+
+	virtual void flexTick(
+		float deltaT,
+		NvFlexVector<int>& neighbourIndices,
+		NvFlexVector<int>& neighbourCounts,
+		NvFlexVector<int>& apiToInternal,
+		NvFlexVector<int>& internalToAPI,
+		int maxParticles
+	)override;
+
+	UFUNCTION(BlueprintCallable)
+	bool getIsDirty();
+
+	UFUNCTION(BlueprintCallable)
+	void resetValues();
+
+	UFUNCTION(BlueprintCallable)
+	void recalculateTotals();
+};
 
 
 
+//////////////////////////CENTRAL DOGMA SIMULATION//////////////////////////////////////
+
+
+UCLASS(BlueprintType)
+class LIFEBRUSH_API UEvent_spawnRNA : public USEGraphEvent
+{
+	GENERATED_BODY()
+
+public:
+	virtual ~UEvent_spawnRNA() {}
+};
+
+UCLASS(BlueprintType)
+class LIFEBRUSH_API UEvent_SpawnProtein : public USEGraphEvent
+{
+	GENERATED_BODY()
+
+public:
+	virtual ~UEvent_SpawnProtein() {}
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_DNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
+	bool bIsGTFBound = false;
+	bool bIsPolBound = false;
+	bool bHasBeenTranscribed = false;
+
+	bool isPolBound() { return bIsPolBound; }
+	bool isGTFBound() { return bIsGTFBound; }
+	bool hasBeenTranscribed() { return bHasBeenTranscribed; }
+	bool isBeingTranscribed() { return isPolBound() && isGTFBound(); }
+
+	void setHasBeenTranscribed(bool b) { bHasBeenTranscribed = b; }
+	void setGTFBound(bool bound) { bIsGTFBound = bound; }
+	void setPolBound(bool bound) { bIsPolBound = bound; }
+
+	float transcriptionTimer;
+
+	//used to store initial random walk values so we can restore them after DNA is unbound
+	float defaultRandWalk_MaxOff;
+	float defaultRandWalk_BaseVel;
+
+	//references to bound GTF and Pol objects corresponding to a given DNA strand
+	int32 boundGTFIndex;
+	int32 boundPolIndex;
+
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_RNA_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+
+public:
+		
+	FVector outerMembranePoint = FVector (-1.f, 103.f, 174.f);
+	int32 boundRiboIndex = NULL;
+
+	float translationTimer;
+
+	float defaultRandWalk_MaxOff;
+	float defaultRandWalk_BaseVel;
+		
+	bool bHasBeenTranslated = false;
+	bool bIsRiboBound = false;
+
+	bool isRiboBound() { return bIsRiboBound; }
+	bool hasBeenTranslated() { return bHasBeenTranslated; }
+
+	void setIsRiboBound(bool b) { bIsRiboBound = b; }
+	void setHasBeenTranslated(bool b) { bHasBeenTranslated = b; }
+
+
+	
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_Ribosome_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
+	
+
+	bool bIsRNABound = false;
+
+	bool isRNABound() { return bIsRNABound; }
+
+	void setRNABound(bool b) { bIsRNABound = b; }
+};
+
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_TranscriptFactors_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+
+	bool bIsDNABound = false;
+
+	bool isDNABound() { return bIsDNABound; }
+
+	void setDNABound(bool bound) { bIsDNABound = bound; }
+
+
+};
 
 
 
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FCentralDog_Polymerase_GraphObject : public FGraphObject
+{
+	GENERATED_BODY()
+public:
+	bool bIsDNABound = false;
+
+	bool isDNABound() { return bIsDNABound; }
+
+	void setDNABound(bool bound) { bIsDNABound = bound; }
+};
 
 
 
+//Simulation showing transcription and translation of DNA
+UCLASS()
+class LIFEBRUSH_API UCentralDogmaSimulation : public UObjectSimulation, public IFlexGraphSimulation
+{
+	GENERATED_BODY()
+
+public:
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
+	TArray<FTimStructBox> rnaTemplate;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Central Dogma")
+		TArray<FTimStructBox> translatedProteinTemplate;
+		
+protected:
+	virtual void attach() override;
+
+public:
+	virtual void tick(float deltaT) override;
+	virtual void tick_paused(float deltaT) override;
+
+	virtual void flexTick(
+		float deltaT,
+		NvFlexVector<int>& neighbourIndices,
+		NvFlexVector<int>& neighbourCounts,
+		NvFlexVector<int>& apiToInternal,
+		NvFlexVector<int>& internalToAPI,
+		int maxParticles
+	)override;
+
+protected:
 
 
 
+	FGraphNode& _spawnRNA(FVector position, FQuat orientation, float scale);
+	FGraphNode& _spawnProtein(FVector position, FQuat orientation, float scale);
+
+	void bindGTFtoDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_TranscriptFactors_GraphObject& gtf);
+	void bindPolToDNA(FCentralDog_DNA_GraphObject& dna, FCentralDog_Polymerase_GraphObject& rnaPol);
+	void bindRiboToRNA(FCentralDog_RNA_GraphObject& rna, FCentralDog_Ribosome_GraphObject& ribo);
+
+	void unbindRiboFromRNA(FCentralDog_RNA_GraphObject& rna);
+	void unbindPolFromDNA(FCentralDog_DNA_GraphObject& dna);
+	void unbindGTFfromDNA(FCentralDog_DNA_GraphObject& dna);
+	
+
+};
 
 
 
-
-
-
-
-
-
-
-
+///////////////////////////////////////////////////////////////////////////////////////////
 
 USTRUCT( BlueprintType )
 struct FNvFlexParameters

@@ -15,6 +15,32 @@
 
 class UGraphSimulationManager;
 
+//structure outlying data fields that will be displayed on information pane
+USTRUCT(BlueprintType)
+struct LIFEBRUSH_API FInfoPaneText
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FText name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (MultiLine = true))
+	FText Description;
+
+	//Whether the display image should be made from the texture field or the material field below (if true then InfoPane will use Material)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	bool useMaterialAsImage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UTexture2D* displayImageTexture;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+		UMaterial* displayImageMaterial;
+
+};
+
 UENUM(Blueprintable)
 enum class ESpaceMode : uint8
 {
@@ -28,6 +54,15 @@ class LIFEBRUSH_API AElementActor : public AStaticMeshActor
 	GENERATED_BODY()
 	
 public:
+
+	//information fields that will be used by the exemplar information panel
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Info Panel")
+	bool displayOnInfoPanel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Info Panel")
+		FInfoPaneText InfoPane;
+
 	// Whether the UStaticMeshComponent attached to this actor should be the basis for an
 	// FGraphMesh. False means we don't automatically attach one to the node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Agent Library")
@@ -75,6 +110,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RG")
 	EAggregateProxyParticleOrMember particleOrMember = EAggregateProxyParticleOrMember::Particle;
 
+
+
 public:	
 	// Sets default values for this actor's properties
 	AElementActor();
@@ -85,11 +122,14 @@ public:
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
 
+	
 	virtual void writeToElement(ElementTuple& element, FGraph& graph);
 	void readFromElement( ElementTuple& element, FGraph& graph);
 
 	void showSelectionOutline();
 	void hideSelectionOutline();
+
+	FString getActorName();
 
 protected:
 	void _loadAggregate(FGraphNodeHandle elementNode, FGraph& graph);
@@ -115,4 +155,6 @@ protected:
 		TArray<FGraphNodeHandle>& aggregatesInBody);
 
 	void _setSelectionOutlineVisibility(bool visibility);
+
+
 };

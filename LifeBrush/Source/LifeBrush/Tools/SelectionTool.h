@@ -14,6 +14,9 @@ class AElementActor;
 class UDiscreteElementEditorComponent;
 class URegionGrowingGeneratorTool;
 
+
+//FOR SELECTING THINGS INSIDE THE CANVAS
+
 UENUM( BlueprintType )
 enum class ESelectionToolMode : uint8
 {

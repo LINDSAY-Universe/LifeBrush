@@ -9,7 +9,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostEngineInit",
 			"AdditionalDependencies": [
-				"Engine"
+				"Engine",
+				"UMG"
 			]
 		}
 	],
@@ -114,6 +115,19 @@
 		{
 			"Name": "OculusVR",
 			"Enabled": false
+		},
+		{
+			"Name": "MixedRealityFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "LIV",
+			"Enabled": false
+		},
+		{
+			"Name": "KantanCharts",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/89bd18db011b4bd19606db2e31020f13"
 		}
 	],
 	"TargetPlatforms": [

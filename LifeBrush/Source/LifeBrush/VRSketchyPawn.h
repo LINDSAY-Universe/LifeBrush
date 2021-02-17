@@ -46,6 +46,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ShipEditor")
 	bool developerMode = true;
 
+
 	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "ShipEditor" )
 	USceneComponent * vrScene;
 
